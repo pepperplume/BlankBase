@@ -1,0 +1,146 @@
+@{
+    ViewData["Title"] = "Form Demo with Toast";
+}
+
+<div class="row">
+    <div class="col-md-6">
+        <h1>Traditional Form POST Demo</h1>
+        <p>Submit the form below to see a toast message after the page reloads (Post-Redirect-Get pattern).</p>
+
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">User Information Form</h5>
+                <form method="post" asp-action="FormExample" asp-controller="Toast">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="age" class="form-label">Age</label>
+                        <input type="number" class="form-control" id="age" name="age" min="1" max="120" required />
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Submit Form</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <p class="text-muted">
+                <strong>How it works:</strong> When you submit this form, it does a traditional POST to the server.
+                The server processes the data, stores multiple toast notifications in TempData (as a JSON-serialized list), and redirects back to this page.
+                On page load, JavaScript checks for TempData and automatically displays all queued toast messages stacked vertically.
+                Try different ages to see conditional toasts (under 18 or 65+)!
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer">
+    <!-- Toasts will be dynamically inserted here -->
+</div>
+
+@using BlankBase.Extensions
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@{
+    var toasts = TempData.GetToasts();
+    var jsonOptions = new JsonSerializerOptions
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+}
+
+@section Scripts {
+    <script>
+        // Check for toast data from TempData on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            @if (toasts.Any())
+            {
+                <text>
+                // Array of toast notifications from server
+                const toasts = @Html.Raw(JsonSerializer.Serialize(toasts, jsonOptions));
+
+                // Display each toast (note: property names are PascalCase from C# serialization)
+                toasts.forEach((toast, index) => {
+                    showToast(toast.MessageText, toast.MessageType, toast.Duration, toast.AutoHide);
+                });
+                </text>
+            }
+        });
+
+        function showToast(messageText, messageType, duration, autoHide) {
+            // Create toast element
+            const toastId = 'toast-' + Date.now();
+            const toast = createToastElement(toastId, messageText, messageType);
+
+            // Append to container
+            document.getElementById('toastContainer').appendChild(toast);
+
+            // Initialize and show the toast
+            const toastElement = document.getElementById(toastId);
+            const bsToast = new bootstrap.Toast(toastElement, {
+                autohide: autoHide,
+                delay: duration
+            });
+
+            bsToast.show();
+
+            // Remove toast from DOM after it's hidden
+            toastElement.addEventListener('hidden.bs.toast', function () {
+                toastElement.remove();
+            });
+        }
+
+        function createToastElement(id, message, type) {
+            // Determine colors and icon based on message type
+            // Note: type comes from C# ToastType enum serialized as string (e.g., "Success", "Warning", "Error")
+            let bgClass = '';
+            let icon = '';
+            let title = '';
+
+            switch (type) {
+                case 'Success':
+                case 'success':
+                    bgClass = 'bg-success text-white';
+                    icon = '✓';
+                    title = 'Success';
+                    break;
+                case 'Warning':
+                case 'warning':
+                    bgClass = 'bg-warning';
+                    icon = '⚠';
+                    title = 'Warning';
+                    break;
+                case 'Error':
+                case 'error':
+                    bgClass = 'bg-danger text-white';
+                    icon = '✕';
+                    title = 'Error';
+                    break;
+            }
+
+            // Create toast HTML
+            const toastDiv = document.createElement('div');
+            toastDiv.id = id;
+            toastDiv.className = 'toast';
+            toastDiv.setAttribute('role', 'alert');
+            toastDiv.setAttribute('aria-live', 'assertive');
+            toastDiv.setAttribute('aria-atomic', 'true');
+
+            toastDiv.innerHTML = `
+                <div class="toast-header ${bgClass}">
+                    <strong class="me-auto">${icon} ${title}</strong>
+                    <button type="button" class="btn-close ${type === 'warning' ? '' : 'btn-close-white'}" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            `;
+
+            return toastDiv;
+        }
+    </script>
+}
