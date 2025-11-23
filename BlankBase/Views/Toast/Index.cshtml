@@ -1,13 +1,5 @@
-@using BlankBase.Extensions
-@using System.Text.Json
-@using System.Text.Json.Serialization
 @{
     ViewData["Title"] = "Toast Demo";
-    var toasts = TempData.GetToasts();
-    var jsonOptions = new JsonSerializerOptions
-    {
-        Converters = { new JsonStringEnumConverter() }
-    };
 }
 
 <div class="row">
@@ -71,28 +63,10 @@
     </div>
 </div>
 
-<!-- Toast Container -->
-<div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer">
-    <!-- Toasts will be dynamically inserted here -->
-</div>
-
 @section Scripts {
     <script>
-        // Check for toast data from TempData on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            @if (toasts.Any())
-            {
-                <text>
-                // Array of toast notifications from server
-                const toasts = @Html.Raw(JsonSerializer.Serialize(toasts, jsonOptions));
-
-                // Display each toast (note: property names are PascalCase from C# serialization)
-                toasts.forEach((toast, index) => {
-                    showToast(toast.MessageText, toast.MessageType, toast.Duration, toast.AutoHide);
-                });
-                </text>
-            }
-        });
+        // Toast.Type constants are available: Toast.Type.SUCCESS, Toast.Type.WARNING, Toast.Type.ERROR
+        // You can use either the constants or strings ('success', 'warning', 'error')
 
         function triggerToast() {
             // Get the selected mode
@@ -114,8 +88,8 @@
             const duration = parseInt(document.getElementById('duration').value);
             const autoHide = document.getElementById('autoHide').checked;
 
-            // Show the toast
-            showToast(messageText, messageType, duration, autoHide);
+            // Show the toast using convenience method
+            Toast.create(messageText, messageType, duration, autoHide);
         }
 
         function triggerToastPost() {
@@ -143,85 +117,13 @@
             })
             .then(response => response.json())
             .then(data => {
-                // Trigger toast with data from server
-                showToast(data.messageText, data.messageType, data.duration, data.autoHide);
+                // Display toast messages from server response
+                Toast.showMessages(data);
             })
             .catch(error => {
                 console.error('Error:', error);
-                showToast('Error communicating with server', 'error', 3000, true);
+                Toast.create('Error communicating with server', Toast.Type.ERROR, 3000, true);
             });
-        }
-
-        function showToast(messageText, messageType, duration, autoHide) {
-            // Create toast element
-            const toastId = 'toast-' + Date.now();
-            const toast = createToastElement(toastId, messageText, messageType);
-
-            // Append to container
-            document.getElementById('toastContainer').appendChild(toast);
-
-            // Initialize and show the toast
-            const toastElement = document.getElementById(toastId);
-            const bsToast = new bootstrap.Toast(toastElement, {
-                autohide: autoHide,
-                delay: duration
-            });
-
-            bsToast.show();
-
-            // Remove toast from DOM after it's hidden
-            toastElement.addEventListener('hidden.bs.toast', function () {
-                toastElement.remove();
-            });
-        }
-
-        function createToastElement(id, message, type) {
-            // Determine colors and icon based on message type
-            // Note: type comes from C# ToastType enum serialized as string (e.g., "Success", "Warning", "Error")
-            let bgClass = '';
-            let icon = '';
-            let title = '';
-
-            switch (type) {
-                case 'Success':
-                case 'success':
-                    bgClass = 'bg-success text-white';
-                    icon = '✓';
-                    title = 'Success';
-                    break;
-                case 'Warning':
-                case 'warning':
-                    bgClass = 'bg-warning';
-                    icon = '⚠';
-                    title = 'Warning';
-                    break;
-                case 'Error':
-                case 'error':
-                    bgClass = 'bg-danger text-white';
-                    icon = '✕';
-                    title = 'Error';
-                    break;
-            }
-
-            // Create toast HTML
-            const toastDiv = document.createElement('div');
-            toastDiv.id = id;
-            toastDiv.className = 'toast';
-            toastDiv.setAttribute('role', 'alert');
-            toastDiv.setAttribute('aria-live', 'assertive');
-            toastDiv.setAttribute('aria-atomic', 'true');
-
-            toastDiv.innerHTML = `
-                <div class="toast-header ${bgClass}">
-                    <strong class="me-auto">${icon} ${title}</strong>
-                    <button type="button" class="btn-close ${type === 'warning' ? '' : 'btn-close-white'}" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-                <div class="toast-body">
-                    ${message}
-                </div>
-            `;
-
-            return toastDiv;
         }
     </script>
 }

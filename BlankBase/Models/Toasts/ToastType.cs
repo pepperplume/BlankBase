@@ -1,4 +1,4 @@
-namespace BlankBase.Models
+namespace BlankBase.Models.Toasts
 {
     public enum ToastType
     {

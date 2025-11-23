@@ -1,7 +1,28 @@
+using BlankBase.Models.Toasts;
+using BlankBase.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+
+// Add HttpContextAccessor for ToastService
+builder.Services.AddHttpContextAccessor();
+
+// Register ToastService
+builder.Services.AddScoped<IToastService, ToastService>();
+
+// Configure toast default options
+builder.Services.Configure<ToastDefaultOptions>(options =>
+{
+    options.SuccessDuration = 3000;
+    options.WarningDuration = 5000;
+    options.ErrorDuration = 4000;
+
+    options.SuccessAutoHide = true;
+    options.WarningAutoHide = true;
+    options.ErrorAutoHide = false; // Errors require user acknowledgment
+});
 
 var app = builder.Build();
 

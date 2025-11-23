@@ -1,11 +1,20 @@
 using Microsoft.AspNetCore.Mvc;
+using BlankBase.Services;
+using BlankBase.Models.Toasts;
 using BlankBase.Extensions;
-using BlankBase.Models;
+using System.Text.Json;
 
 namespace BlankBase.Controllers
 {
     public class ToastController : Controller
     {
+        private readonly IToastService _toastService;
+
+        public ToastController(IToastService toastService)
+        {
+            _toastService = toastService;
+        }
+
         public IActionResult Index()
         {
             return View();
@@ -14,14 +23,29 @@ namespace BlankBase.Controllers
         [HttpPost]
         public IActionResult ShowToast([FromBody] ToastRequest request)
         {
-            // Pass the parameters back as JSON for the client-side JavaScript to handle
-            return Json(new
+            // Parse MessageType string to enum, default to Success if invalid
+            if (!Enum.TryParse<ToastType>(request.MessageType, true, out var messageType))
             {
-                messageText = request.MessageText,
-                messageType = request.MessageType,
-                duration = request.Duration,
-                autoHide = request.AutoHide
-            });
+                messageType = ToastType.Success;
+            }
+
+            // Create an empty JSON object as the base
+            var json = JsonSerializer.SerializeToNode(new { });
+
+            // Add toast to JSON using ToastService based on message type
+            // This demonstrates the new pattern: any object + toastMessages
+            json = messageType switch
+            {
+                ToastType.Success => _toastService.AddSuccessToJson(json!, request.MessageText, request.Duration, request.AutoHide),
+                ToastType.Warning => _toastService.AddWarningToJson(json!, request.MessageText, request.Duration, request.AutoHide),
+                ToastType.Error => _toastService.AddErrorToJson(json!, request.MessageText, request.Duration, request.AutoHide),
+                _ => _toastService.AddSuccessToJson(json!, request.MessageText, request.Duration, request.AutoHide)
+            };
+
+            json = _toastService.AddSuccessToJson(json, "it worked", request.Duration, request.AutoHide);
+
+            // Return JSON with toastMessages array (property name defined once in ToastService)
+            return Json(json, TempDataExtensions.JsonOptions);
         }
 
         public IActionResult FormExample()
@@ -32,17 +56,17 @@ namespace BlankBase.Controllers
         [HttpPost]
         public IActionResult FormExample(string name, int age)
         {
-            // Add multiple toast messages using the extension method with type-safe enum
-            TempData.AddToast($"Hello {name}! You are {age} years old.", ToastType.Warning, 5000);
-            TempData.AddToast("Your form has been successfully submitted.", ToastType.Error, 4000);
+            // Add multiple toast messages using the toast service
+            _toastService.AddSuccess($"Hello {name}! You are {age} years old.", duration: 5000);
+            _toastService.AddSuccess("Your form has been successfully submitted.");
 
             if (age < 18)
             {
-                TempData.AddToast("Note: You are under 18 years old.", ToastType.Warning, 6000);
+                _toastService.AddWarning("Note: You are under 18 years old.", duration: 6000);
             }
             else if (age >= 65)
             {
-                TempData.AddToast("Senior discount available!", ToastType.Success, 5000);
+                _toastService.AddSuccess("Senior discount available!", duration: 5000);
             }
 
             // Redirect to GET action (Post-Redirect-Get pattern)
