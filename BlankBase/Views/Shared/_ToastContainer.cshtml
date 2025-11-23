@@ -1,0 +1,12 @@
+@using BlankBase.Extensions
+@using System.Text.Json
+@{
+    var toasts = TempData.GetToasts();
+}
+
+@* Toast Container - Fixed position at top-right of viewport *@
+<div class="toast-container position-fixed top-0 end-0 p-3"
+     id="toastContainer"
+     data-initial-toasts='@Html.Raw(JsonSerializer.Serialize(toasts, TempDataExtensions.JsonOptions))'>
+    <!-- Toasts will be dynamically inserted here -->
+</div>
