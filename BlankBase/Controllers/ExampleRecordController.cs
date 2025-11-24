@@ -92,4 +92,49 @@ public class ExampleRecordController : Controller
             }
         }, TempDataExtensions.JsonOptions);
     }
+
+    /// <summary>
+    /// Demonstrates EntityCache usage for merging multiple query results with automatic deduplication.
+    /// This pattern is useful in orchestration scenarios where you need to combine results from multiple queries
+    /// while ensuring each entity appears only once (based on its ID).
+    /// </summary>
+    /// <returns>View showing cached and merged results</returns>
+    public async Task<IActionResult> CacheExample()
+    {
+        // Create an EntityCache with type-safe key selector (int for ExampleRecordID)
+        var cache = new EntityCache<Data.Entities.ExampleRecord, int>(x => x.ExampleRecordID);
+
+        // Query 1: Get first page of records sorted by Name
+        var page1Results = await _unitOfWork.ExampleRecordRepository
+            .GetAllExampleRecordsPagedAsync(1, 5, ExampleRecordSortColumns.Name, SortDirections.Asc);
+        cache.AddRange(page1Results.Items);
+
+        // Query 2: Get second page of records sorted by Age
+        var page2Results = await _unitOfWork.ExampleRecordRepository
+            .GetAllExampleRecordsPagedAsync(2, 5, ExampleRecordSortColumns.Age, SortDirections.Desc);
+        cache.AddRange(page2Results.Items); // Automatically deduplicates if any IDs overlap
+
+        // Query 3: Get third page of records sorted by Birthdate
+        var page3Results = await _unitOfWork.ExampleRecordRepository
+            .GetAllExampleRecordsPagedAsync(3, 5, ExampleRecordSortColumns.Birthdate, SortDirections.Asc);
+        cache.AddRange(page3Results.Items); // Keeps first occurrence, ignores duplicates
+
+        // Type-safe lookup example
+        if (cache.TryGet(1, out var specificRecord))
+        {
+            // Do something with the specific record
+            ViewBag.FoundRecord = specificRecord;
+        }
+
+        // Get all unique records from cache
+        var allUniqueRecords = cache.GetAll().ToList();
+
+        ViewBag.CacheCount = cache.Count;
+        ViewBag.Query1Count = page1Results.Items.Count;
+        ViewBag.Query2Count = page2Results.Items.Count;
+        ViewBag.Query3Count = page3Results.Items.Count;
+        ViewBag.TotalQueriedCount = page1Results.Items.Count + page2Results.Items.Count + page3Results.Items.Count;
+
+        return View(allUniqueRecords);
+    }
 }
