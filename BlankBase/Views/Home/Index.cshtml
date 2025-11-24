@@ -10,17 +10,29 @@
 <div class="mt-4">
     <h2>Demos</h2>
     <div class="list-group">
-        <a asp-controller="Toast" asp-action="Index" class="list-group-item list-group-item-action">
+        <a asp-controller="@(Name<ToastController>.Value)" asp-action="@nameof(ToastController.Index)" class="list-group-item list-group-item-action">
             <div class="d-flex w-100 justify-content-between">
                 <h5 class="mb-1">Bootstrap Toast Messages</h5>
             </div>
             <p class="mb-1">Interactive demo for creating and customizing Bootstrap toast notifications.</p>
         </a>
-        <a asp-controller="Toast" asp-action="FormExample" class="list-group-item list-group-item-action">
+        <a asp-controller="@(Name<ToastController>.Value)" asp-action="@nameof(ToastController.FormExample)" class="list-group-item list-group-item-action">
             <div class="d-flex w-100 justify-content-between">
                 <h5 class="mb-1">Form POST with Toast Messages</h5>
             </div>
             <p class="mb-1">Traditional form submission using Post-Redirect-Get pattern with TempData to display toast notifications.</p>
+        </a>
+        <a asp-controller="@(Name<ExampleRecordController>.Value)" asp-action="@nameof(ExampleRecordController.Index)" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">Repository Pattern with Pagination (Traditional)</h5>
+            </div>
+            <p class="mb-1">Server-side pagination demonstrating the Repository pattern with Unit of Work. Full page reload with numbered page links.</p>
+        </a>
+        <a asp-controller="@(Name<ExampleRecordController>.Value)" asp-action="@nameof(ExampleRecordController.AjaxExample)" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">Repository Pattern with Pagination (AJAX)</h5>
+            </div>
+            <p class="mb-1">Modern client-side pagination using fetch API with URL state management. Data loaded dynamically without page refresh. Supports bookmarks, back button, and page refresh.</p>
         </a>
     </div>
 </div>

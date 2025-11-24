@@ -40,13 +40,26 @@ dotnet restore
 
 ## Project Structure
 
-- **Program.cs**: Application entry point and middleware configuration. Uses minimal hosting model with builder pattern. Includes toast service registration and configuration.
+- **Program.cs**: Application entry point and middleware configuration. Uses minimal hosting model with builder pattern. Includes toast service registration and UnitOfWork configuration.
 - **Controllers/**: MVC controllers
   - **HomeController.cs**: Default controller with Index, Privacy, and Error actions
   - **ToastController.cs**: Toast notification demo controller
+  - **ExampleRecordController.cs**: Pagination and sorting demo controller
 - **Models/**: Data models and view models
   - **ErrorViewModel.cs**: Error page view model
   - **Toasts/**: Toast notification models (ToastNotification, ToastType, ToastDefaultOptions)
+- **Data/**: Repository pattern implementation with Entity Framework Core
+  - **Context.cs**: Entity Framework DbContext
+  - **IRepository.cs**: Generic repository interface
+  - **Repository.cs**: Generic base repository with ApplySort helper
+  - **IUnitOfWork.cs**: Unit of Work interface
+  - **UnitOfWork.cs**: Unit of Work implementation
+  - **PagedResult.cs**: Pagination model with metadata
+  - **QueryableExtensions.cs**: Extension methods for pagination
+  - **SortDirections.cs**: Sort direction constants
+  - **Data/Entities/**: Entity classes (ExampleRecord, ApplicationSetting)
+  - **Data/Repositories/**: Entity-specific repository interfaces and implementations
+  - **Data/SortColumns/**: Sort column constants per entity (using nameof() for refactor-safety)
 - **Services/**: Application services
   - **IToastService.cs**: Toast service interface
   - **ToastService.cs**: Toast service implementation
@@ -56,13 +69,217 @@ dotnet restore
   - **Views/Shared/**: Layout and shared partial views (_Layout.cshtml, _ToastContainer.cshtml, Error.cshtml)
   - **Views/Home/**: Home controller views (Index.cshtml, Privacy.cshtml)
   - **Views/Toast/**: Toast demo views (Index.cshtml, FormExample.cshtml)
+  - **Views/ExampleRecord/**: Pagination demo views (Index.cshtml, AjaxExample.cshtml)
 - **wwwroot/**: Static files
   - **wwwroot/js/toast.js**: Client-side toast notification system with JSDoc documentation
   - **wwwroot/css/**: Stylesheets
   - **wwwroot/lib/**: Third-party libraries (Bootstrap, jQuery)
-- **appsettings.json**: Application configuration (logging levels, allowed hosts)
+- **appsettings.json**: Application configuration (logging levels, allowed hosts, connection strings)
 - **Properties/launchSettings.json**: Development environment profiles
 - **CLAUDE.md**: Project documentation and coding guidelines for AI assistants
+- **Helpers/**: Helper classes and utilities
+  - **Name.cs**: Type-safe controller name resolution for eliminating magic strings in routing
+
+## Type-Safe Routing Pattern
+
+The application uses a custom `Name<T>` helper class to eliminate magic strings when referencing controllers in Razor views. This provides compile-time safety and refactoring support for all routing operations.
+
+### The Problem with Magic Strings
+
+ASP.NET Core MVC's tag helpers and URL generation traditionally use string literals for controller and action names:
+
+```cshtml
+<!-- Traditional approach with magic strings -->
+<a asp-controller="Home" asp-action="Index">Home</a>
+@Url.Action("Index", "Home")
+```
+
+**Problems:**
+- ❌ **No compile-time checking**: Typos and errors discovered at runtime
+- ❌ **Refactoring breaks links**: Renaming a controller breaks all string references silently
+- ❌ **No IntelliSense support**: Must remember exact controller/action names
+- ❌ **Maintenance burden**: Finding all references to a controller requires text search
+
+### The Solution: Name<T> Helper
+
+The `Name<T>` helper class provides type-safe controller name resolution:
+
+```csharp
+// Helpers/Name.cs
+public static class Name<T> where T : Controller
+{
+    public static string Value { get; }
+
+    static Name()
+    {
+        var typeName = typeof(T).Name;
+        Value = typeName.EndsWith("Controller", StringComparison.Ordinal)
+            ? typeName[..^"Controller".Length]
+            : typeName;
+    }
+}
+```
+
+**How it works:**
+- Generic type parameter `T` constrained to `Controller` types
+- Static constructor computes controller name once at initialization
+- Automatically strips "Controller" suffix from type name
+- Returns clean controller name (e.g., `HomeController` → `"Home"`)
+
+### Usage Examples
+
+#### Tag Helpers (asp-controller, asp-action)
+
+```cshtml
+<!-- Before: Magic strings -->
+<a asp-controller="Toast" asp-action="Index">Toast Demo</a>
+
+<!-- After: Type-safe -->
+<a asp-controller="@Name<ToastController>.Value" asp-action="@nameof(ToastController.Index)">Toast Demo</a>
+```
+
+#### Url.Action() Helper
+
+```cshtml
+<!-- Before: Magic strings -->
+@Url.Action("Index", "Home")
+
+<!-- After: Type-safe -->
+@Url.Action(nameof(HomeController.Index), Name<HomeController>.Value)
+```
+
+#### Forms
+
+```cshtml
+<!-- Before: Magic strings -->
+<form method="post" asp-action="FormExample" asp-controller="Toast">
+
+<!-- After: Type-safe -->
+<form method="post" asp-action="@nameof(ToastController.FormExample)" asp-controller="@Name<ToastController>.Value">
+```
+
+#### JavaScript with Url.Action()
+
+```javascript
+// Before: Magic strings in JavaScript template
+fetch('@Url.Action("ShowToast", "Toast")', {
+    method: 'POST',
+    // ...
+});
+
+// After: Type-safe
+fetch('@Url.Action(nameof(ToastController.ShowToast), Name<ToastController>.Value)', {
+    method: 'POST',
+    // ...
+});
+```
+
+#### With Route Values
+
+```cshtml
+<!-- Before: Magic strings -->
+<a href="@Url.Action("Index", "ExampleRecord", new { page = 1, sortBy = "Name" })">Records</a>
+
+<!-- After: Type-safe -->
+<a href="@Url.Action(nameof(ExampleRecordController.Index), Name<ExampleRecordController>.Value, new { page = 1, sortBy = ExampleRecordSortColumns.Name })">Records</a>
+```
+
+### Configuration
+
+The `Name<T>` helper is available in all views through `_ViewImports.cshtml`:
+
+```cshtml
+@using BlankBase.Helpers
+@using BlankBase.Controllers
+```
+
+**Required namespaces:**
+- `BlankBase.Helpers` - Provides access to `Name<T>` class
+- `BlankBase.Controllers` - Provides access to controller types (HomeController, ToastController, etc.)
+
+### Benefits
+
+✅ **Compile-Time Safety**: Typos and invalid references caught at build time
+✅ **Refactoring Support**: Renaming a controller or action updates all references automatically
+✅ **IntelliSense Support**: Autocomplete for controller types and action method names
+✅ **Find All References**: IDE can locate all usages of a controller or action
+✅ **No Runtime Errors**: Invalid routes discovered during development, not production
+✅ **Self-Documenting**: Code clearly shows which controllers and actions are being referenced
+✅ **Zero Runtime Overhead**: Static initialization computes values once at startup
+
+### Pattern Throughout Codebase
+
+This pattern is used consistently throughout all Razor views:
+
+- **_Layout.cshtml**: Navigation links (Home, Privacy)
+- **Home/Index.cshtml**: Demo links (Toast, ExampleRecord)
+- **Toast/Index.cshtml**: AJAX endpoints
+- **Toast/FormExample.cshtml**: Form submissions
+- **ExampleRecord/Index.cshtml**: Pagination and sorting links (11 instances)
+- **ExampleRecord/AjaxExample.cshtml**: AJAX pagination endpoints
+
+**28 total URL references** converted from magic strings to type-safe references.
+
+### Comparison
+
+| Aspect | Magic Strings | Name<T> Pattern |
+|--------|--------------|-----------------|
+| Compile-time checking | ❌ No | ✅ Yes |
+| Refactoring safety | ❌ Breaks silently | ✅ Breaks build |
+| IntelliSense support | ❌ No | ✅ Yes |
+| Find references | ⚠️ Text search only | ✅ IDE "Find All References" |
+| Verbosity | ✅ Short | ⚠️ Longer |
+| Learning curve | ✅ Standard ASP.NET Core | ⚠️ Custom pattern |
+| Runtime overhead | ✅ Minimal | ✅ Minimal (static init) |
+
+### Best Practices
+
+1. **Always use with nameof()**: Combine `Name<T>.Value` for controllers with `nameof()` for actions
+   ```cshtml
+   <a asp-controller="@Name<HomeController>.Value" asp-action="@nameof(HomeController.Index)">
+   ```
+
+2. **Combine with other constants**: Use with `ExampleRecordSortColumns` and other constant classes
+   ```cshtml
+   @Url.Action(nameof(ExampleRecordController.Index), Name<ExampleRecordController>.Value,
+               new { sortBy = ExampleRecordSortColumns.Name })
+   ```
+
+3. **Use in JavaScript templates**: Works in `@section Scripts` blocks
+   ```javascript
+   const url = '@Url.Action(nameof(ToastController.ShowToast), Name<ToastController>.Value)';
+   ```
+
+4. **Import in _ViewImports.cshtml**: Ensure namespaces are available in all views
+   ```cshtml
+   @using BlankBase.Helpers
+   @using BlankBase.Controllers
+   ```
+
+### Why This Pattern?
+
+**Alternative approaches considered:**
+
+1. **`nameof(HomeController)` with `.Replace("Controller", "")`**
+   - Too verbose and awkward
+   - Fragile (breaks if controller doesn't end with "Controller")
+
+2. **Constants class with manual strings**
+   - Requires manual maintenance
+   - Not automatically synced with actual controllers
+   - Still allows typos within constant definitions
+
+3. **Named routes**
+   - Still uses magic strings (route names)
+   - Requires naming every single route
+   - Doesn't solve the action name problem
+
+4. **Custom tag helper with lambda expressions**
+   - Significant implementation complexity
+   - Requires custom syntax learning
+   - Overkill for this use case
+
+**The `Name<T>` pattern provides the best balance** of type safety, simplicity, and refactoring support with minimal code and no runtime overhead.
 
 ## Architecture Notes
 
@@ -396,3 +613,558 @@ All toasts include a close button and can be configured to auto-hide after a spe
 ✅ **Automatic Display**: Auto-initialization from TempData on page load (PRG pattern)
 ✅ **Flexible**: Override defaults per-toast or use global configuration
 ✅ **IntelliSense Support**: Comprehensive documentation for excellent developer experience
+
+## Repository Pattern with Pagination and Sorting
+
+The application implements a production-ready Repository pattern with Unit of Work, featuring server-side pagination and sortable columns with compile-time safety. The system demonstrates both traditional server-side and modern AJAX pagination patterns.
+
+### Key Components
+
+**Data Layer (Data/):**
+- `Data/Context.cs` - Entity Framework DbContext with DbSet properties
+- `Data/IRepository.cs` - Generic repository interface defining CRUD operations
+- `Data/Repository.cs` - Generic base repository implementation with ApplySort helper method
+- `Data/IUnitOfWork.cs` - Unit of Work interface for transaction management
+- `Data/UnitOfWork.cs` - Unit of Work implementation aggregating all repositories
+- `Data/PagedResult.cs` - Model containing paginated data with metadata (PageNumber, PageSize, TotalCount, TotalPages, HasPreviousPage, HasNextPage)
+- `Data/QueryableExtensions.cs` - Extension methods for pagination on IOrderedQueryable<T> (compile-time enforcement)
+- `Data/SortDirections.cs` - Constants for sort direction values ("asc", "desc")
+- `Data/SortColumns/` - Folder containing sort column constants per entity (using nameof() for refactor-safety)
+
+**Entities (Data/Entities/):**
+- `Data/Entities/ExampleRecord.cs` - Example entity demonstrating pagination and sorting
+- Entity-specific classes with properties matching database schema
+
+**Repositories (Data/Repositories/):**
+- `Data/Repositories/IExampleRecordRepository.cs` - Interface extending IRepository with pagination method
+- `Data/Repositories/ExampleRecordRepository.cs` - Implementation with sortable pagination using ApplySort helper
+- Entity-specific repository interfaces and implementations
+
+**Controllers:**
+- `Controllers/ExampleRecordController.cs` - Demonstration controller with both traditional and AJAX pagination actions
+
+**Views:**
+- `Views/ExampleRecord/Index.cshtml` - Traditional server-side pagination with sortable headers
+- `Views/ExampleRecord/AjaxExample.cshtml` - AJAX pagination with URL state management and sortable headers
+
+### Architecture Overview
+
+**Generic Repository Pattern:**
+```csharp
+// Base interface defines CRUD operations for any entity
+public interface IRepository<TEntity> where TEntity : class, new()
+{
+    TEntity? Find(params object[] id);
+    ValueTask<TEntity?> FindAsync(params object[] id);
+    void Add(TEntity entity);
+    ValueTask AddAsync(TEntity entity);
+    void Remove(TEntity entity);
+    void Update(TEntity entity);
+    bool IsExistByID(params object[] id);
+    Task<bool> IsExistByIDAsync(params object[] id);
+    // ... additional CRUD methods
+}
+
+// Base repository implements common operations
+public class Repository<TDbContext, TEntity> : IRepository<TEntity>
+    where TDbContext : DbContext
+    where TEntity : class, new()
+{
+    protected TDbContext _Context { get; private set; }
+
+    // Helper method to reduce sorting code duplication
+    protected IOrderedQueryable<TEntity> ApplySort<TKey>(
+        IQueryable<TEntity> query,
+        System.Linq.Expressions.Expression<Func<TEntity, TKey>> keySelector,
+        string direction)
+    {
+        if (direction == SortDirections.Desc)
+        {
+            return query.OrderByDescending(keySelector);
+        }
+        else
+        {
+            return query.OrderBy(keySelector);
+        }
+    }
+}
+```
+
+**Unit of Work Pattern:**
+```csharp
+// Aggregates repositories and manages transactions
+public class UnitOfWork : IUnitOfWork, IDisposable
+{
+    private readonly Context _Context;
+    public IExampleRecordRepository ExampleRecordRepository { init; get; }
+
+    public UnitOfWork(Context context)
+    {
+        _Context = context;
+        ExampleRecordRepository = new ExampleRecordRepository(context);
+    }
+
+    public int SaveChanges() => _Context.SaveChanges();
+    public async Task<int> SaveChangesAsync() => await _Context.SaveChangesAsync();
+}
+```
+
+**Dependency Injection (Program.cs):**
+```csharp
+// Register DbContext
+builder.Services.AddDbContext<Context>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Register UnitOfWork
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+```
+
+### Pagination System
+
+**PagedResult Model:**
+```csharp
+public class PagedResult<T>
+{
+    public List<T> Items { get; set; } = new();
+    public int PageNumber { get; set; }
+    public int PageSize { get; set; }
+    public int TotalCount { get; set; }
+    public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
+    public bool HasPreviousPage => PageNumber > 1;
+    public bool HasNextPage => PageNumber < TotalPages;
+}
+```
+
+**Extension Method with Compile-Time Safety:**
+```csharp
+// Only works on IOrderedQueryable - ensures sorting happens before pagination
+public static async Task<PagedResult<T>> GetPagedAsync<T>(
+    this IOrderedQueryable<T> query,
+    int pageNumber,
+    int pageSize)
+{
+    var totalCount = await query.CountAsync();
+    var items = await query
+        .Skip((pageNumber - 1) * pageSize)
+        .Take(pageSize)
+        .ToListAsync();
+
+    return new PagedResult<T>
+    {
+        Items = items,
+        PageNumber = pageNumber,
+        PageSize = pageSize,
+        TotalCount = totalCount
+    };
+}
+```
+
+### Sorting Implementation with Constants
+
+**Eliminate Magic Strings using nameof():**
+```csharp
+// Data/SortColumns/ExampleRecordSortColumns.cs
+public static class ExampleRecordSortColumns
+{
+    public const string ExampleRecordID = nameof(ExampleRecord.ExampleRecordID);
+    public const string Name = nameof(ExampleRecord.Name);
+    public const string Age = nameof(ExampleRecord.Age);
+    public const string Birthdate = nameof(ExampleRecord.Birthdate);
+    public const string IsActive = nameof(ExampleRecord.IsActive);
+}
+
+// Data/SortDirections.cs
+public static class SortDirections
+{
+    public const string Asc = "asc";
+    public const string Desc = "desc";
+}
+```
+
+**Benefits:**
+- **Refactor-Safe**: Renaming a property breaks the build → easy to fix
+- **Compile-Time Checking**: Typos are caught immediately
+- **IntelliSense Support**: Auto-completion for column names
+- **Consistency**: Same constants used in repositories, controllers, and views
+
+### Repository Implementation Example
+
+**Interface:**
+```csharp
+public interface IExampleRecordRepository : IRepository<ExampleRecord>
+{
+    Task<PagedResult<ExampleRecord>> GetAllExampleRecordsPagedAsync(
+        int pageNumber,
+        int pageSize,
+        string? sortBy = null,
+        string sortDirection = SortDirections.Asc);
+}
+```
+
+**Implementation using ApplySort helper:**
+```csharp
+public class ExampleRecordRepository : Repository<Context, ExampleRecord>, IExampleRecordRepository
+{
+    public ExampleRecordRepository(Context context) : base(context) { }
+
+    public async Task<PagedResult<ExampleRecord>> GetAllExampleRecordsPagedAsync(
+        int pageNumber,
+        int pageSize,
+        string? sortBy = null,
+        string sortDirection = SortDirections.Asc)
+    {
+        var query = _Context.ExampleRecords.AsQueryable();
+
+        // Apply sorting based on column (whitelist approach for security)
+        var sortByLower = sortBy?.ToLower();
+        var sortDirLower = sortDirection.ToLower();
+
+        var orderedQuery = sortByLower switch
+        {
+            var col when col == ExampleRecordSortColumns.ExampleRecordID.ToLower() =>
+                ApplySort(query, x => x.ExampleRecordID, sortDirLower),
+
+            var col when col == ExampleRecordSortColumns.Name.ToLower() =>
+                ApplySort(query, x => x.Name, sortDirLower),
+
+            var col when col == ExampleRecordSortColumns.Age.ToLower() =>
+                ApplySort(query, x => x.Age, sortDirLower),
+
+            var col when col == ExampleRecordSortColumns.Birthdate.ToLower() =>
+                ApplySort(query, x => x.Birthdate, sortDirLower),
+
+            var col when col == ExampleRecordSortColumns.IsActive.ToLower() =>
+                ApplySort(query, x => x.IsActive, sortDirLower),
+
+            // Default: Sort by Name ascending
+            _ => ApplySort(query, x => x.Name, SortDirections.Asc)
+        };
+
+        return await orderedQuery.GetPagedAsync(pageNumber, pageSize);
+    }
+}
+```
+
+**Security Notes:**
+- **Whitelist Pattern**: Only explicitly defined columns can be sorted
+- **No SQL Injection**: User input compared against constants, not used in queries
+- **Default Fallback**: Invalid column names fall back to safe default sort
+
+### Two Pagination Patterns
+
+#### 1. Traditional Server-Side Pagination (ExampleRecord/Index)
+
+**Controller Action:**
+```csharp
+public class ExampleRecordController : Controller
+{
+    private readonly IUnitOfWork _unitOfWork;
+    private const int DefaultPageSize = 10;
+
+    public ExampleRecordController(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<IActionResult> Index(
+        int page = 1,
+        string? sortBy = null,
+        string sortDirection = SortDirections.Asc)
+    {
+        if (page < 1) page = 1;
+
+        var pagedResult = await _unitOfWork.ExampleRecordRepository
+            .GetAllExampleRecordsPagedAsync(page, DefaultPageSize, sortBy, sortDirection);
+
+        ViewBag.SortBy = sortBy ?? ExampleRecordSortColumns.Name;
+        ViewBag.SortDirection = sortDirection;
+
+        return View(pagedResult);
+    }
+}
+```
+
+**View with Sortable Headers:**
+```cshtml
+@model BlankBase.Data.PagedResult<BlankBase.Data.Entities.ExampleRecord>
+
+@functions {
+    string GetSortUrl(string columnName, int? page = null)
+    {
+        var currentSortBy = ViewBag.SortBy as string ?? ExampleRecordSortColumns.Name;
+        var currentSortDirection = ViewBag.SortDirection as string ?? SortDirections.Asc;
+
+        // Toggle direction if clicking same column; otherwise start with asc
+        var newDirection = columnName.Equals(currentSortBy, StringComparison.OrdinalIgnoreCase)
+            ? (currentSortDirection == SortDirections.Asc ? SortDirections.Desc : SortDirections.Asc)
+            : SortDirections.Asc;
+
+        return Url.Action("Index", new { page = page ?? 1, sortBy = columnName, sortDirection = newDirection }) ?? "#";
+    }
+
+    string GetSortIndicator(string columnName)
+    {
+        var currentSortBy = ViewBag.SortBy as string ?? ExampleRecordSortColumns.Name;
+        var currentSortDirection = ViewBag.SortDirection as string ?? SortDirections.Asc;
+
+        if (!columnName.Equals(currentSortBy, StringComparison.OrdinalIgnoreCase))
+            return "";
+
+        return currentSortDirection == SortDirections.Asc ? " ▲" : " ▼";
+    }
+}
+
+<th class="sortable" style="cursor: pointer;">
+    <a href="@GetSortUrl(ExampleRecordSortColumns.Name)" class="text-decoration-none text-dark">
+        <span class="sort-header">Name <span class="sort-indicator">@GetSortIndicator(ExampleRecordSortColumns.Name)</span></span>
+    </a>
+</th>
+```
+
+**Features:**
+- Full page reload on navigation
+- URL contains all state (page, sortBy, sortDirection)
+- Bookmarkable and shareable links
+- Works without JavaScript
+- SEO-friendly
+
+#### 2. AJAX Pagination with URL State Management (ExampleRecord/AjaxExample)
+
+**Controller API Action:**
+```csharp
+[HttpGet]
+public async Task<IActionResult> GetRecordsJson(
+    int page = 1,
+    int pageSize = 10,
+    string? sortBy = null,
+    string sortDirection = SortDirections.Asc)
+{
+    if (page < 1) page = 1;
+
+    var pagedResult = await _unitOfWork.ExampleRecordRepository
+        .GetAllExampleRecordsPagedAsync(page, pageSize, sortBy, sortDirection);
+
+    return Json(new
+    {
+        items = pagedResult.Items,
+        pagination = new
+        {
+            pageNumber = pagedResult.PageNumber,
+            pageSize = pagedResult.PageSize,
+            totalCount = pagedResult.TotalCount,
+            totalPages = pagedResult.TotalPages,
+            hasPreviousPage = pagedResult.HasPreviousPage,
+            hasNextPage = pagedResult.HasNextPage
+        }
+    });
+}
+```
+
+**View with JavaScript (URL State Management):**
+```javascript
+// Constants rendered from C# constants
+const ASC = '@SortDirections.Asc';
+const DESC = '@SortDirections.Desc';
+const DEFAULT_SORT_BY = '@ExampleRecordSortColumns.Name';
+
+// Current state
+let currentPage = 1;
+let currentSortBy = DEFAULT_SORT_BY;
+let currentSortDirection = ASC;
+
+// Read state from URL parameters (supports bookmarking and refresh)
+function getStateFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+        page: parseInt(params.get('page')) || 1,
+        sortBy: params.get('sortBy') || DEFAULT_SORT_BY,
+        sortDirection: params.get('sortDirection') || ASC
+    };
+}
+
+// Update URL without reloading page (History API)
+function updateUrl(page, sortBy, sortDirection) {
+    const url = new URL(window.location);
+    url.searchParams.set('page', page);
+    url.searchParams.set('sortBy', sortBy);
+    url.searchParams.set('sortDirection', sortDirection);
+    window.history.pushState({ page, sortBy, sortDirection }, '', url);
+}
+
+// Load records from API
+async function loadRecords(page, sortBy = null, sortDirection = null) {
+    if (sortBy !== null) currentSortBy = sortBy;
+    if (sortDirection !== null) currentSortDirection = sortDirection;
+
+    const response = await fetch(`@Url.Action("GetRecordsJson")?page=${page}&pageSize=10&sortBy=${currentSortBy}&sortDirection=${currentSortDirection}`);
+    const data = await response.json();
+
+    currentPage = data.pagination.pageNumber;
+    updateUrl(currentPage, currentSortBy, currentSortDirection); // Makes it bookmarkable
+
+    renderTable(data.items);
+    renderPagination(data.pagination);
+}
+
+// Handle browser back/forward buttons
+window.addEventListener('popstate', (event) => {
+    const state = event.state || getStateFromUrl();
+    loadRecords(state.page, state.sortBy, state.sortDirection);
+});
+
+// Initialize from URL on page load
+document.addEventListener('DOMContentLoaded', () => {
+    const initialState = getStateFromUrl();
+    loadRecords(initialState.page, initialState.sortBy, initialState.sortDirection);
+});
+```
+
+**Features:**
+- No page reload on navigation
+- URL contains all state (supports bookmarking, refresh, back/forward buttons)
+- Dynamic data loading with Fetch API
+- Smooth user experience
+- Shareable links with preserved state
+
+### Creating New Repositories with Pagination and Sorting
+
+**Step 1: Create Entity**
+```csharp
+// Data/Entities/Product.cs
+public class Product
+{
+    public int ProductID { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+    public DateTime CreatedDate { get; set; }
+}
+```
+
+**Step 2: Create Sort Columns Constants**
+```csharp
+// Data/SortColumns/ProductSortColumns.cs
+public static class ProductSortColumns
+{
+    public const string ProductID = nameof(Product.ProductID);
+    public const string Name = nameof(Product.Name);
+    public const string Price = nameof(Product.Price);
+    public const string CreatedDate = nameof(Product.CreatedDate);
+}
+```
+
+**Step 3: Create Repository Interface**
+```csharp
+// Data/Repositories/IProductRepository.cs
+public interface IProductRepository : IRepository<Product>
+{
+    Task<PagedResult<Product>> GetAllProductsPagedAsync(
+        int pageNumber,
+        int pageSize,
+        string? sortBy = null,
+        string sortDirection = SortDirections.Asc);
+}
+```
+
+**Step 4: Implement Repository using ApplySort helper**
+```csharp
+// Data/Repositories/ProductRepository.cs
+public class ProductRepository : Repository<Context, Product>, IProductRepository
+{
+    public ProductRepository(Context context) : base(context) { }
+
+    public async Task<PagedResult<Product>> GetAllProductsPagedAsync(
+        int pageNumber,
+        int pageSize,
+        string? sortBy = null,
+        string sortDirection = SortDirections.Asc)
+    {
+        var query = _Context.Products.AsQueryable();
+        var sortByLower = sortBy?.ToLower();
+        var sortDirLower = sortDirection.ToLower();
+
+        var orderedQuery = sortByLower switch
+        {
+            var col when col == ProductSortColumns.ProductID.ToLower() =>
+                ApplySort(query, x => x.ProductID, sortDirLower),
+
+            var col when col == ProductSortColumns.Name.ToLower() =>
+                ApplySort(query, x => x.Name, sortDirLower),
+
+            var col when col == ProductSortColumns.Price.ToLower() =>
+                ApplySort(query, x => x.Price, sortDirLower),
+
+            var col when col == ProductSortColumns.CreatedDate.ToLower() =>
+                ApplySort(query, x => x.CreatedDate, sortDirLower),
+
+            _ => ApplySort(query, x => x.Name, SortDirections.Asc) // Default sort
+        };
+
+        return await orderedQuery.GetPagedAsync(pageNumber, pageSize);
+    }
+}
+```
+
+**Step 5: Add to Context and UnitOfWork**
+```csharp
+// Data/Context.cs
+public class Context : DbContext
+{
+    public DbSet<Product> Products { get; set; }
+}
+
+// Data/IUnitOfWork.cs
+public interface IUnitOfWork : IDisposable
+{
+    IProductRepository ProductRepository { init; get; }
+}
+
+// Data/UnitOfWork.cs
+public class UnitOfWork : IUnitOfWork, IDisposable
+{
+    public IProductRepository ProductRepository { init; get; }
+
+    public UnitOfWork(Context context)
+    {
+        ProductRepository = new ProductRepository(context);
+    }
+}
+```
+
+**Step 6: Create Controller**
+```csharp
+public class ProductController : Controller
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public ProductController(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<IActionResult> Index(int page = 1, string? sortBy = null, string sortDirection = SortDirections.Asc)
+    {
+        var pagedResult = await _unitOfWork.ProductRepository
+            .GetAllProductsPagedAsync(page, 10, sortBy, sortDirection);
+
+        ViewBag.SortBy = sortBy ?? ProductSortColumns.Name;
+        ViewBag.SortDirection = sortDirection;
+
+        return View(pagedResult);
+    }
+}
+```
+
+### Key Features Summary
+
+✅ **Repository Pattern**: Generic base repository with entity-specific implementations
+✅ **Unit of Work**: Transaction management and repository aggregation
+✅ **Pagination**: Server-side pagination with PagedResult model and metadata
+✅ **Compile-Time Safety**: IOrderedQueryable extension enforces sorting before pagination
+✅ **Refactor-Safe Sorting**: Constants use nameof() expressions for property names
+✅ **ApplySort Helper**: Reduces code duplication across repository implementations
+✅ **SQL Injection Prevention**: Whitelist pattern with switch statement for column names
+✅ **Two-State Sort Toggle**: Clicking same column toggles between ascending/descending
+✅ **URL State Management**: AJAX pagination supports bookmarking, refresh, and browser navigation
+✅ **Dual Pagination Patterns**: Traditional (full reload) and AJAX (dynamic loading) examples
+✅ **Dependency Injection**: Interface-based abstraction for testability and flexibility
+✅ **IntelliSense Support**: Constants provide auto-completion for column names and sort directions

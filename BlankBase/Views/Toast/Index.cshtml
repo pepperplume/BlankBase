@@ -108,7 +108,7 @@
             };
 
             // Submit via AJAX
-            fetch('@Url.Action("ShowToast", "Toast")', {
+            fetch('@Url.Action(nameof(ToastController.ShowToast), Name<ToastController>.Value)', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
