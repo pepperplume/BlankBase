@@ -1,0 +1,169 @@
+@model List<BlankBase.Data.Entities.ExampleRecord>
+
+@{
+    ViewData["Title"] = "Entity Cache Pattern Demo";
+}
+
+<div class="container mt-4">
+    <h1 class="mb-4">Entity Cache Pattern Demo</h1>
+
+    <div class="alert alert-info">
+        <h5>How EntityCache Works</h5>
+        <p class="mb-0">
+            This demo queries the database <strong>3 times</strong> with different sort orders and page numbers.
+            The <code>EntityCache&lt;ExampleRecord, int&gt;</code> automatically merges the results and removes duplicates,
+            keeping only the <strong>first occurrence</strong> of each unique entity (by ID).
+        </p>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Query 1 Results</h5>
+                    <p class="card-text display-6">@ViewBag.Query1Count</p>
+                    <small>Sorted by Name (ASC)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Query 2 Results</h5>
+                    <p class="card-text display-6">@ViewBag.Query2Count</p>
+                    <small>Sorted by Age (DESC)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Query 3 Results</h5>
+                    <p class="card-text display-6">@ViewBag.Query3Count</p>
+                    <small>Sorted by Birthdate (ASC)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Total Queried</h5>
+                    <p class="card-text display-6">@ViewBag.TotalQueriedCount</p>
+                    <small>Before deduplication</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h5 class="card-title text-success">
+                        <i class="bi bi-check-circle-fill"></i> Cached Unique Records
+                    </h5>
+                    <p class="card-text display-4 text-success">@ViewBag.CacheCount</p>
+                    <p class="mb-0">
+                        <strong>Deduplication saved:</strong>
+                        @(ViewBag.TotalQueriedCount - ViewBag.CacheCount) duplicate record(s)
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (ViewBag.FoundRecord != null)
+    {
+        <div class="alert alert-success">
+            <h5>Type-Safe Lookup Example</h5>
+            <p class="mb-0">
+                Successfully retrieved record with ID = 1 using <code>cache.TryGet(1, out var record)</code>
+            </p>
+        </div>
+    }
+
+    <h3 class="mt-4 mb-3">Unique Cached Records</h3>
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Age</th>
+                        <th>Birthdate</th>
+                        <th>Active</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var record in Model)
+                    {
+                        <tr>
+                            <td>@record.ExampleRecordID</td>
+                            <td>@record.Name</td>
+                            <td>@record.Age</td>
+                            <td>@record.Birthdate.ToShortDateString()</td>
+                            <td>
+                                @if (record.IsActive)
+                                {
+                                    <span class="badge bg-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Inactive</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            <p class="mb-0">No records found in cache.</p>
+        </div>
+    }
+
+    <div class="mt-4">
+        <h4>Code Example</h4>
+        <pre class="bg-light p-3 border rounded"><code>// Create cache with type-safe key selector
+var cache = new EntityCache&lt;ExampleRecord, int&gt;(x => x.ExampleRecordID);
+
+// Query 1: Page 1, sorted by Name
+var page1Results = await _unitOfWork.ExampleRecordRepository
+    .GetAllExampleRecordsPagedAsync(1, 5, "Name", "asc");
+cache.AddRange(page1Results.Items);
+
+// Query 2: Page 2, sorted by Age
+var page2Results = await _unitOfWork.ExampleRecordRepository
+    .GetAllExampleRecordsPagedAsync(2, 5, "Age", "desc");
+cache.AddRange(page2Results.Items); // Deduplicates automatically
+
+// Query 3: Page 3, sorted by Birthdate
+var page3Results = await _unitOfWork.ExampleRecordRepository
+    .GetAllExampleRecordsPagedAsync(3, 5, "Birthdate", "asc");
+cache.AddRange(page3Results.Items); // Keeps first occurrence
+
+// Type-safe lookup
+if (cache.TryGet(1, out var record))
+{
+    // Use the record
+}
+
+// Get all unique records
+var allUniqueRecords = cache.GetAll().ToList();</code></pre>
+    </div>
+
+    <div class="mt-4">
+        <a asp-controller="@(Name<HomeController>.Value)" asp-action="@nameof(HomeController.Index)" class="btn btn-primary">
+            <i class="bi bi-house-fill"></i> Back to Home
+        </a>
+        <a asp-controller="@(Name<ExampleRecordController>.Value)" asp-action="@nameof(ExampleRecordController.Index)" class="btn btn-secondary">
+            <i class="bi bi-table"></i> View Traditional Pagination
+        </a>
+    </div>
+</div>

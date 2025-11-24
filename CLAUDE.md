@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an ASP.NET Core 10.0 MVC web application called "BlankBase" - a standard template-based project with minimal customization. The application follows the conventional MVC architecture pattern with Controllers, Models, and Views.
+ASP.NET Core 10.0 MVC web application called "BlankBase" - a template-based project following conventional MVC architecture with Controllers, Models, and Views.
 
 ## Technology Stack
 
@@ -14,385 +14,298 @@ This is an ASP.NET Core 10.0 MVC web application called "BlankBase" - a standard
 
 ## Build and Run Commands
 
-### Build
 ```bash
+# Build
 dotnet build
-```
 
-### Run the application
-```bash
+# Run
 dotnet run --project BlankBase/BlankBase.csproj
 ```
 
-The application will be available at:
+Application URLs:
 - HTTPS: https://localhost:7065
 - HTTP: http://localhost:5246
 
-### Clean build artifacts
-```bash
-dotnet clean
-```
-
-### Restore NuGet packages
-```bash
-dotnet restore
-```
-
 ## Project Structure
 
-- **Program.cs**: Application entry point and middleware configuration. Uses minimal hosting model with builder pattern. Includes toast service registration and configuration.
-- **Controllers/**: MVC controllers
-  - **HomeController.cs**: Default controller with Index, Privacy, and Error actions
-  - **ToastController.cs**: Toast notification demo controller
-- **Models/**: Data models and view models
-  - **ErrorViewModel.cs**: Error page view model
-  - **Toasts/**: Toast notification models (ToastNotification, ToastType, ToastDefaultOptions)
-- **Services/**: Application services
-  - **IToastService.cs**: Toast service interface
-  - **ToastService.cs**: Toast service implementation
-- **Extensions/**: Extension methods
-  - **TempDataExtensions.cs**: TempData extension methods for toast notifications
-- **Views/**: Razor views organized by controller
-  - **Views/Shared/**: Layout and shared partial views (_Layout.cshtml, _ToastContainer.cshtml, Error.cshtml)
-  - **Views/Home/**: Home controller views (Index.cshtml, Privacy.cshtml)
-  - **Views/Toast/**: Toast demo views (Index.cshtml, FormExample.cshtml)
-- **wwwroot/**: Static files
-  - **wwwroot/js/toast.js**: Client-side toast notification system with JSDoc documentation
-  - **wwwroot/css/**: Stylesheets
-  - **wwwroot/lib/**: Third-party libraries (Bootstrap, jQuery)
-- **appsettings.json**: Application configuration (logging levels, allowed hosts)
-- **Properties/launchSettings.json**: Development environment profiles
-- **CLAUDE.md**: Project documentation and coding guidelines for AI assistants
+- **Program.cs**: Entry point, middleware configuration, service registration (Toast, UnitOfWork)
+- **Controllers/**: MVC controllers (HomeController, ToastController, ExampleRecordController)
+- **Models/**: Data models, view models, toast models
+- **Data/**: Repository pattern with EF Core
+  - Context, IRepository, Repository (with ApplySort helper)
+  - IUnitOfWork, UnitOfWork
+  - PagedResult, QueryableExtensions
+  - Entities/, Repositories/, SortColumns/ (nameof() constants)
+- **Services/**: IToastService, ToastService
+- **Extensions/**: TempDataExtensions (toast helpers)
+- **Helpers/**: Name.cs (type-safe controller routing)
+- **Views/**: Razor views by controller + Shared/
+- **wwwroot/**: Static files (js/toast.js, css/, lib/)
+
+## Type-Safe Routing Pattern
+
+Uses `Name<T>` helper class to eliminate magic strings in routing. See `Helpers/Name.cs`.
+
+**Usage:**
+```cshtml
+<!-- Controller names -->
+<a asp-controller="@Name<ToastController>.Value" asp-action="@nameof(ToastController.Index)">
+
+<!-- URL generation -->
+@Url.Action(nameof(HomeController.Index), Name<HomeController>.Value)
+
+<!-- With route values -->
+@Url.Action(nameof(ExampleRecordController.Index), Name<ExampleRecordController>.Value,
+            new { page = 1, sortBy = ExampleRecordSortColumns.Name })
+```
+
+**Benefits:** Compile-time safety, refactoring support, IntelliSense, no runtime errors.
+
+**Configuration:** Available via `_ViewImports.cshtml` imports (`BlankBase.Helpers`, `BlankBase.Controllers`).
 
 ## Architecture Notes
 
-### Middleware Pipeline (Program.cs:8-26)
-The application configures middleware in this order:
-1. Exception handler (production only) - redirects to /Home/Error
-2. HSTS (production only)
+**Middleware Pipeline (Program.cs):**
+1. Exception handler (production) → /Home/Error
+2. HSTS (production)
 3. HTTPS redirection
 4. Routing
 5. Authorization
 6. Static assets
-7. MVC controller routing with default pattern: `{controller=Home}/{action=Index}/{id?}`
+7. MVC routing: `{controller=Home}/{action=Index}/{id?}`
 
-### Default Routing
-The application uses conventional routing with Home/Index as the default route. All controllers follow the MVC pattern and inherit from `Microsoft.AspNetCore.Mvc.Controller`.
-
-## Solution Structure
-
-The solution uses the newer `.slnx` format (Visual Studio 2022+) containing a single project: BlankBase/BlankBase.csproj.
+**Default Route:** Home/Index
 
 ## Toast Notification System
 
-The application includes a production-ready Bootstrap toast notification system with comprehensive documentation, dependency injection, and multiple implementation patterns for displaying user feedback messages.
+Production-ready Bootstrap toast system with dependency injection. Three implementation patterns:
 
-### Key Components
-
-**Models (Models/Toasts/):**
-- `ToastNotification.cs` - Model class representing a toast notification with properties: MessageText, MessageType (enum), Duration, AutoHide
-- `ToastType.cs` - Enum defining toast types: Success, Warning, Error (provides type safety)
-- `ToastDefaultOptions.cs` - Configuration class for default toast behavior (duration and auto-hide per type)
-
-**Services:**
-- `Services/IToastService.cs` - Service interface with comprehensive XML documentation
-  - **TempData methods (for PRG pattern):**
-    - `AddSuccess(string message, int? duration = null, bool? autoHide = null)` - Add success toast to TempData
-    - `AddWarning(string message, int? duration = null, bool? autoHide = null)` - Add warning toast to TempData
-    - `AddError(string message, int? duration = null, bool? autoHide = null)` - Add error toast to TempData
-  - **JSON methods (for AJAX responses):**
-    - `AddSuccessToJson(JsonNode json, string message, int? duration = null, bool? autoHide = null)` - Attach success toast to JSON response
-    - `AddWarningToJson(JsonNode json, string message, int? duration = null, bool? autoHide = null)` - Attach warning toast to JSON response
-    - `AddErrorToJson(JsonNode json, string message, int? duration = null, bool? autoHide = null)` - Attach error toast to JSON response
-- `Services/ToastService.cs` - Implementation using dependency injection (IHttpContextAccessor, ITempDataDictionaryFactory)
-  - Defines "toastMessages" property name once as a constant to prevent typos
-  - JSON methods automatically create or append to toastMessages array in response
-
-**Extensions:**
-- `Extensions/TempDataExtensions.cs` - Low-level TempData extension methods
-  - `AddToast(string message, ToastType type, int duration, bool autoHide)` - Queue a toast message
-  - `GetToasts()` - Retrieve queued toast messages from TempData
-  - `JsonOptions` (public) - Shared JsonSerializerOptions with JsonStringEnumConverter
-
-**JavaScript:**
-- `wwwroot/js/toast.js` - Client-side toast system with comprehensive JSDoc documentation
-  - `Toast.Type` - Enum constants (SUCCESS, WARNING, ERROR)
-  - `Toast.show(config)` - Display toast from config object (handles both PascalCase and camelCase)
-  - `Toast.create(messageText, messageType, duration, autoHide)` - Convenience method for client-side toasts
-  - `Toast.showMessages(response)` - Process server response with toastMessages array
-  - Auto-initialization from `data-initial-toasts` attribute on page load
-  - Uses timestamp + counter for unique IDs to handle multiple simultaneous toasts
-
-**Views:**
-- `Views/Shared/_ToastContainer.cshtml` - Toast container partial with auto-initialization support
-- `Views/Toast/Index.cshtml` - Interactive demo with JavaScript and AJAX POST modes
-- `Views/Toast/FormExample.cshtml` - Traditional form POST with PRG pattern demo
-- `Views/Home/Index.cshtml` - Landing page with links to toast demos
-
-**Controllers:**
-- `Controllers/ToastController.cs` - Demonstration controller showing all three implementation patterns
-
-### Three Implementation Patterns
-
-#### 1. Client-Side JavaScript (Toast/Index - JavaScript Mode)
-Trigger toasts entirely on the client side without server interaction.
-
+### 1. Client-Side JavaScript
 ```javascript
-// Use Toast.create() for client-side toasts
-Toast.create("Message text", Toast.Type.SUCCESS, 3000, true);
-
-// Or use Toast.show() with config object
-Toast.show({
-    messageText: "Profile saved locally",
-    messageType: Toast.Type.SUCCESS,
-    duration: 3000,
-    autoHide: true
-});
+Toast.create("Message", Toast.Type.SUCCESS, 3000, true);
 ```
 
-**Use case:** Network errors, client-side validation, instant UI feedback
-
-#### 2. AJAX POST with ToastService JSON Methods (Toast/Index - POST Mode)
-Submit form data via AJAX, server uses IToastService to attach toasts to JSON response, then display toasts on client.
-
-**Server-side (using ToastService JSON methods):**
+### 2. AJAX POST with JSON Methods
+**Server:**
 ```csharp
-[HttpPost]
-public IActionResult CreateUser([FromBody] UserRequest request)
-{
-    // Create your response data (can be any object)
-    var result = new { id = 123, name = request.Name, email = request.Email };
-
-    // Serialize to JSON
-    var json = JsonSerializer.SerializeToNode(result);
-
-    // Add toast notifications using IToastService
-    // The "toastMessages" property name is defined once in ToastService - no typos possible!
-    json = _toastService.AddSuccessToJson(json!, "User created successfully!");
-    json = _toastService.AddSuccessToJson(json!, "Welcome email sent.");
-
-    // Optionally add warnings or errors
-    if (someCondition)
-    {
-        json = _toastService.AddWarningToJson(json!, "Please verify your email address.");
-    }
-
-    // Return JSON with both data and toastMessages array
-    return Json(json, TempDataExtensions.JsonOptions);
-}
-// Result: { "id": 123, "name": "John", "email": "john@example.com", "toastMessages": [...] }
+var json = JsonSerializer.SerializeToNode(result);
+json = _toastService.AddSuccessToJson(json!, "Success message!");
+return Json(json, TempDataExtensions.JsonOptions); // CRITICAL: Use JsonOptions for enum serialization
 ```
 
-**For toast-only responses (no additional data):**
-```csharp
-[HttpPost]
-public IActionResult ShowToast([FromBody] ToastRequest request)
-{
-    // Start with empty object
-    var json = JsonSerializer.SerializeToNode(new { });
-
-    // Add toast based on type
-    json = _toastService.AddSuccessToJson(json!, request.MessageText, request.Duration, request.AutoHide);
-
-    return Json(json, TempDataExtensions.JsonOptions);
-}
-// Result: { "toastMessages": [...] }
-```
-
-**Client-side:**
+**Client:**
 ```javascript
-fetch('/Toast/ShowToast', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messageText: "Hello", messageType: "success" })
-})
-.then(response => response.json())
-.then(data => Toast.showMessages(data)) // Displays all toasts from response
-.catch(error => {
-    Toast.create('Server unavailable', Toast.Type.ERROR, 5000, false);
-});
+fetch(url, {...}).then(r => r.json()).then(data => Toast.showMessages(data));
 ```
 
-**Use case:** AJAX form submissions, API responses, server-side validation with client-side display, returning data + toast notifications
-
-**Key benefits:**
-- "toastMessages" property name defined **once** in ToastService constant - eliminates typo risk
-- Works with **any** response object (user data, products, empty object, etc.)
-- Automatically creates or appends to toastMessages array
-- Type-safe with ToastNotification DTO
-- Chainable method calls for multiple toasts
-
-#### 3. Traditional Form POST with PRG Pattern (Toast/FormExample)
-Submit form traditionally, use IToastService (dependency injection) to queue toasts, redirect, and display on page load.
-
+### 3. Traditional POST-Redirect-Get
 ```csharp
-public class MyController : Controller
-{
-    private readonly IToastService _toastService;
-
-    public MyController(IToastService toastService)
-    {
-        _toastService = toastService;
-    }
-
-    [HttpPost]
-    public IActionResult FormExample(string name, int age)
-    {
-        // Add toasts using the service (uses defaults from ToastDefaultOptions)
-        _toastService.AddSuccess($"Hello {name}! You are {age} years old.");
-        _toastService.AddSuccess("Your form has been successfully submitted.");
-
-        if (age < 18)
-        {
-            _toastService.AddWarning("Note: You are under 18 years old.", duration: 6000);
-        }
-
-        // Redirect - toasts will display on the next page load
-        return RedirectToAction("FormExample");
-    }
-}
+_toastService.AddSuccess("Success message!");
+return RedirectToAction("Index");
 ```
 
-**Use case:** Traditional MVC form submissions, post-processing notifications, Post-Redirect-Get pattern
+### Key Implementation Notes
 
-### Configuration (Program.cs)
-
-The toast system is registered in `Program.cs` with configurable defaults:
-
+**Service Registration (Program.cs):**
 ```csharp
-// Add HttpContextAccessor for ToastService
 builder.Services.AddHttpContextAccessor();
-
-// Register ToastService
 builder.Services.AddScoped<IToastService, ToastService>();
-
-// Configure toast default options
-builder.Services.Configure<ToastDefaultOptions>(options =>
-{
-    options.SuccessDuration = 3000;
-    options.WarningDuration = 5000;
-    options.ErrorDuration = 4000;
-
-    options.SuccessAutoHide = true;
-    options.WarningAutoHide = true;
-    options.ErrorAutoHide = false; // Errors require user acknowledgment
-});
+builder.Services.Configure<ToastDefaultOptions>(options => { /* ... */ });
 ```
 
-### Usage Examples
+**Critical JSON Serialization:**
+- ALWAYS use `TempDataExtensions.JsonOptions` when returning JSON with toasts
+- Ensures enums serialize as strings ("Success") not integers (0)
+- "toastMessages" property name defined once in ToastService constant (typo-proof)
 
-#### Recommended: Using IToastService (Dependency Injection)
+**Components:**
+- **Services**: IToastService (TempData methods + JSON methods), ToastService
+- **Models**: ToastNotification, ToastType enum, ToastDefaultOptions
+- **Extensions**: TempDataExtensions (AddToast, GetToasts, JsonOptions)
+- **JavaScript**: wwwroot/js/toast.js (Toast.show, Toast.create, Toast.showMessages)
+- **Views**: _ToastContainer.cshtml (auto-initialization from TempData)
 
+**Demo Controllers/Views:** ToastController, Toast/Index, Toast/FormExample
+
+## Repository Pattern with Pagination and Sorting
+
+Generic Repository + Unit of Work pattern with server-side pagination and type-safe sorting.
+
+### Core Components
+
+- **IRepository&lt;TEntity&gt;**: Generic CRUD interface
+- **Repository&lt;TDbContext, TEntity&gt;**: Base implementation with `ApplySort` helper
+- **IUnitOfWork / UnitOfWork**: Aggregates repositories, transaction management
+- **PagedResult&lt;T&gt;**: Pagination metadata (PageNumber, PageSize, TotalCount, TotalPages, HasPreviousPage, HasNextPage)
+- **QueryableExtensions**: `GetPagedAsync()` on `IOrderedQueryable<T>` (compile-time enforcement)
+- **SortDirections**: Constants ("asc", "desc")
+- **SortColumns/**: Per-entity constants using `nameof()` (e.g., ExampleRecordSortColumns)
+
+### Two Pagination Patterns
+
+**1. Traditional Server-Side (ExampleRecord/Index):**
+- Full page reload
+- URL contains state (page, sortBy, sortDirection)
+- Bookmarkable, works without JS, SEO-friendly
+
+**2. AJAX with URL State (ExampleRecord/AjaxExample):**
+- No page reload
+- URL updated via History API (bookmarkable, refresh, back/forward support)
+- Fetch API for data loading
+
+### Repository Implementation Pattern
+
+**Entity-specific repository with sortable pagination:**
 ```csharp
-public class UserController : Controller
+public async Task<PagedResult<ExampleRecord>> GetAllExampleRecordsPagedAsync(
+    int pageNumber, int pageSize, string? sortBy = null, string sortDirection = SortDirections.Asc)
 {
-    private readonly IToastService _toastService;
+    var query = _Context.ExampleRecords.AsQueryable();
+    var sortByLower = sortBy?.ToLower();
 
-    public UserController(IToastService toastService)
+    var orderedQuery = sortByLower switch
     {
-        _toastService = toastService;
-    }
+        var col when col == ExampleRecordSortColumns.Name.ToLower() =>
+            ApplySort(query, x => x.Name, sortDirection.ToLower()),
+        // ... other columns
+        _ => ApplySort(query, x => x.Name, SortDirections.Asc) // Default
+    };
 
-    [HttpPost]
-    public IActionResult Create(User user)
-    {
-        // Add single toast (uses defaults from ToastDefaultOptions)
-        _toastService.AddSuccess("User created successfully!");
-
-        // Add multiple toasts
-        _toastService.AddSuccess("Welcome email sent.");
-        _toastService.AddWarning("Remember to verify your email.");
-
-        // Override defaults with custom duration and auto-hide
-        _toastService.AddWarning("Important notice!", duration: 10000, autoHide: false);
-
-        // Error toasts (default: no auto-hide)
-        _toastService.AddError("Failed to send confirmation email.");
-
-        return RedirectToAction("Index");
-    }
+    return await orderedQuery.GetPagedAsync(pageNumber, pageSize);
 }
 ```
 
-#### Alternative: Using TempData Extensions Directly
+**Security:** Whitelist pattern - only explicitly defined columns can be sorted (no SQL injection).
+
+### Creating New Repositories
+
+1. **Create Entity** (Data/Entities/)
+2. **Create Sort Columns Constants** (Data/SortColumns/) using `nameof(Entity.Property)`
+3. **Create Repository Interface** extending `IRepository<Entity>` with paged method
+4. **Implement Repository** using `ApplySort` helper in switch statement
+5. **Add to Context** (DbSet&lt;Entity&gt;) and **UnitOfWork** (property + initialization)
+6. **Create Controller** injecting IUnitOfWork
+
+### Service Registration (Program.cs)
 
 ```csharp
-// If you need low-level control or can't use DI
-TempData.AddToast("Operation successful!", ToastType.Success, 3000, true);
+builder.Services.AddDbContext<Context>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 ```
 
-### Important Implementation Details
+### Key Features
 
-**JSON Serialization:**
-- TempData stores toasts as a JSON-serialized list using a single key: "ToastNotifications"
-- `TempDataExtensions.JsonOptions` provides shared JsonSerializerOptions with `JsonStringEnumConverter`
-- **CRITICAL:** When returning JSON from controllers, always use `TempDataExtensions.JsonOptions` to ensure enums serialize as strings ("Success", "Warning", "Error") not integers (0, 1, 2)
+- **Repository Pattern**: Generic base + entity-specific implementations
+- **Unit of Work**: Transaction management
+- **Compile-Time Safety**: IOrderedQueryable enforces sorting before pagination
+- **Refactor-Safe**: Constants use nameof() for property names
+- **ApplySort Helper**: Reduces duplication
+- **Type-Safe Sorting**: No magic strings
+- **SQL Injection Prevention**: Whitelist pattern
 
-**Controller JSON Response Pattern (Recommended):**
+## Entity Caching Pattern
+
+Standalone `EntityCache<TEntity, TKey>` class for manual orchestration in controllers when you need to merge multiple query results with automatic deduplication.
+
+### When to Use
+
+- **Multiple queries need merging** - Combining results from different database queries into a single unique collection
+- **Orchestration scenarios** - Complex business logic requiring entity accumulation across operations
+- **Deduplication required** - Ensuring each entity appears only once (by ID) when results overlap
+- **Request-scoped caching** - Temporary entity storage during a single operation or HTTP request
+
+### Key Features
+
+- ✅ **Type-safe keys** - Compile-time enforcement prevents wrong key types
+- ✅ **Constructor-based keySelector** - Set once, use everywhere (no repetition)
+- ✅ **Automatic deduplication** - Keeps first occurrence when duplicate keys are added
+- ✅ **Simple API** - No dependency injection required, instantiate when needed
+- ✅ **Clean separation** - Repositories remain unchanged, caching is opt-in
+
+### Basic Usage
+
 ```csharp
-using BlankBase.Extensions;
-using BlankBase.Services;
-using System.Text.Json;
+// Create cache with type-safe key selector (set once in constructor)
+var cache = new EntityCache<ExampleRecord, int>(x => x.ExampleRecordID);
 
-[HttpPost]
-public IActionResult MyAction()
-{
-    // Create response data
-    var result = new { success = true, data = "some data" };
+// Query 1: Get first batch of records
+var results1 = await _unitOfWork.ExampleRecordRepository
+    .GetAllExampleRecordsPagedAsync(1, 10);
+cache.AddRange(results1.Items);
 
-    // Serialize to JSON
-    var json = JsonSerializer.SerializeToNode(result);
+// Query 2: Get second batch (may have overlapping IDs)
+var results2 = await _unitOfWork.ExampleRecordRepository
+    .GetAllExampleRecordsPagedAsync(2, 10);
+cache.AddRange(results2.Items); // Automatically deduplicates
 
-    // Add toasts using IToastService - "toastMessages" property defined once in service
-    json = _toastService.AddSuccessToJson(json!, "Operation completed!");
+// Query 3: Get specific records with different filters
+var results3 = await SomeOtherQuery();
+cache.AddRange(results3); // Keeps first occurrence of duplicates
 
-    // IMPORTANT: Always use TempDataExtensions.JsonOptions to serialize enums as strings
-    return Json(json, TempDataExtensions.JsonOptions);
-}
+// Get all unique entities
+var allUniqueRecords = cache.GetAll().ToList();
 ```
 
-**Benefits of this pattern:**
-- "toastMessages" property name defined **once** in ToastService constant (eliminates typo risk)
-- Works with any response object (anonymous, typed, empty)
-- Type-safe with ToastNotification DTO and ToastType enum
-- Automatically handles array creation and appending
+### Available Methods
 
-**Auto-Initialization from TempData:**
-- `_ToastContainer.cshtml` serializes TempData toasts into a `data-initial-toasts` attribute
-- On page load, `toast.js` automatically reads this attribute and displays queued toasts
-- Attribute is removed after consumption to prevent duplicate displays
+**Constructor:**
+```csharp
+EntityCache<TEntity, TKey>(Func<TEntity, TKey> keySelector)
+```
 
-**JavaScript API Design:**
-- `Toast.show(config)` accepts both PascalCase (from C# JSON) and camelCase (from JavaScript)
-- Property names from C# are PascalCase: MessageText, MessageType, Duration, AutoHide
-- The JavaScript API handles both naming conventions transparently
-- Toasts stack vertically in a container positioned at top-right of viewport
+**Adding entities:**
+```csharp
+cache.Add(entity);                  // Add single entity (uses constructor's keySelector)
+cache.AddRange(entities);           // Add multiple entities (deduplicates automatically)
+```
 
-**Documentation:**
-- All C# services and interfaces include comprehensive XML documentation for IntelliSense
-- JavaScript code includes complete JSDoc comments with @param, @returns, and @example tags
-- Use IntelliSense in your IDE to explore available options and see usage examples
+**Retrieving entities:**
+```csharp
+cache.TryGet(id, out entity);       // Type-safe lookup by ID
+cache.Contains(id);                 // Check if ID exists (type-safe)
+cache.GetAll();                     // Get all cached entities
+cache.Count;                        // Number of cached entities
+```
 
-### Toast Display Styling
+**Clearing:**
+```csharp
+cache.Clear();                      // Remove all entities from cache
+```
 
-- **Success**: Green background with checkmark icon (✓)
-- **Warning**: Yellow background with warning icon (⚠)
-- **Error**: Red background with X icon (✕)
+### Type Safety
 
-All toasts include a close button and can be configured to auto-hide after a specified duration.
+The generic `TKey` parameter ensures compile-time safety for all key-based operations:
 
-### Key Features Summary
+```csharp
+// int key type enforced
+var cache = new EntityCache<ExampleRecord, int>(x => x.ExampleRecordID);
 
-✅ **Production-Ready**: Fully documented with JSDoc and XML comments
-✅ **Dependency Injection**: Service-based architecture with IToastService
-✅ **Configurable Defaults**: Per-type duration and auto-hide behavior via ToastDefaultOptions
-✅ **Type Safety**: Enum-based toast types prevent typos and errors
-✅ **Typo-Proof**: "toastMessages" property name defined once in ToastService constant
-✅ **Dual Method Sets**: TempData methods for PRG pattern, JSON methods for AJAX responses
-✅ **Multiple Patterns**: Supports client-side, AJAX, and traditional form POST scenarios
-✅ **Flexible JSON Attachment**: Add toasts to any response object (user data, products, empty, etc.)
-✅ **Clean API**: Simple, intuitive methods (AddSuccess, AddWarning, AddError)
-✅ **No Code Duplication**: Centralized JavaScript in toast.js, reusable partial views
-✅ **Automatic Display**: Auto-initialization from TempData on page load (PRG pattern)
-✅ **Flexible**: Override defaults per-toast or use global configuration
-✅ **IntelliSense Support**: Comprehensive documentation for excellent developer experience
+cache.TryGet(123, out var entity);      // ✅ Compiles
+cache.TryGet("123", out var entity);    // ❌ Compile error - type mismatch!
+cache.Contains(456);                    // ✅ Compiles
+cache.Contains("456");                  // ❌ Compile error - type mismatch!
+```
+
+### Example: ExampleRecordController.CacheExample
+
+See `Controllers/ExampleRecordController.cs:102` for a complete demonstration showing:
+- Creating an EntityCache with constructor-based keySelector
+- Querying the database multiple times with different sort orders
+- Merging results with automatic deduplication
+- Type-safe entity lookups
+- Retrieving all unique cached entities
+
+### Design Philosophy
+
+**Why not integrate with repositories?**
+- Keeps repositories simple and focused on data access
+- Caching is opt-in - only use when needed
+- Avoids adding complexity to every repository method
+- Explicit control - developers decide when and where to cache
+
+**Why manual instantiation instead of DI?**
+- Simpler - no service registration required
+- Explicit - clear when caching is being used
+- Flexible - create multiple caches with different configurations if needed
+- Lightweight - no overhead when not in use

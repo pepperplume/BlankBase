@@ -1,10 +1,20 @@
+using BlankBase.Data;
 using BlankBase.Models.Toasts;
 using BlankBase.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddDbContext<Context>((options) =>
+{
+    options.UseSqlServer("Data Source=VETAPLUME\\SQLEXPRESS;Database=BlankBase;Integrated Security=sspi;Encrypt=true;TrustServerCertificate=true;");
+    options.UseLazyLoadingProxies();
+});
+
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Add HttpContextAccessor for ToastService
 builder.Services.AddHttpContextAccessor();

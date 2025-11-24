@@ -1,0 +1,361 @@
+@using BlankBase.Data
+@using BlankBase.Data.SortColumns
+
+@{
+    ViewData["Title"] = "Example Records - AJAX Pagination";
+}
+
+<div class="container mt-4">
+    <h1>Example Records</h1>
+    <p class="text-muted">Modern AJAX pagination with sortable columns and URL state management. Supports bookmarking, back/forward buttons, and page refresh. (Click column headers to sort)</p>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="text-center my-5" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading records...</p>
+    </div>
+
+    <!-- Error Message -->
+    <div id="error" class="alert alert-danger" style="display: none;"></div>
+
+    <!-- No Records Message -->
+    <div id="noRecords" class="alert alert-info" style="display: none;">
+        No records found. Add some records to see pagination in action.
+    </div>
+
+    <!-- Records Table -->
+    <div id="tableContainer" style="display: none;">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-column="@ExampleRecordSortColumns.ExampleRecordID" style="cursor: pointer;">
+                            <span class="sort-header">ID <span class="sort-indicator"></span></span>
+                        </th>
+                        <th class="sortable" data-column="@ExampleRecordSortColumns.Name" style="cursor: pointer;">
+                            <span class="sort-header">Name <span class="sort-indicator"></span></span>
+                        </th>
+                        <th class="sortable" data-column="@ExampleRecordSortColumns.Age" style="cursor: pointer;">
+                            <span class="sort-header">Age <span class="sort-indicator"></span></span>
+                        </th>
+                        <th class="sortable" data-column="@ExampleRecordSortColumns.Birthdate" style="cursor: pointer;">
+                            <span class="sort-header">Birthdate <span class="sort-indicator"></span></span>
+                        </th>
+                        <th class="sortable" data-column="@ExampleRecordSortColumns.IsActive" style="cursor: pointer;">
+                            <span class="sort-header">Status <span class="sort-indicator"></span></span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="recordsTableBody">
+                    <!-- Records will be inserted here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Info -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div id="paginationInfo" class="text-muted"></div>
+            <div id="pageInfo" class="text-muted"></div>
+        </div>
+
+        <!-- Pagination Controls -->
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center" id="paginationControls">
+                <!-- Pagination buttons will be inserted here by JavaScript -->
+            </ul>
+        </nav>
+    </div>
+
+    <!-- Links to Other Examples -->
+    <hr class="my-4" />
+    <div class="d-flex gap-2">
+        <a href="@Url.Action(nameof(ExampleRecordController.Index), Name<ExampleRecordController>.Value)" class="btn btn-outline-primary">
+            View Traditional Pagination Example
+        </a>
+        <a href="@Url.Action(nameof(HomeController.Index), Name<HomeController>.Value)" class="btn btn-outline-secondary">
+            Back to Home
+        </a>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Sort direction constants (rendered from C# constants)
+        const ASC = '@SortDirections.Asc';
+        const DESC = '@SortDirections.Desc';
+
+        // Default values
+        const DEFAULT_SORT_BY = '@ExampleRecordSortColumns.Name';
+        const DEFAULT_SORT_DIRECTION = ASC;
+
+        // Current page and sort state (will be initialized from URL)
+        let currentPage = 1;
+        let currentSortBy = DEFAULT_SORT_BY;
+        let currentSortDirection = DEFAULT_SORT_DIRECTION;
+        const pageSize = 10;
+
+        // Read state from URL parameters
+        function getStateFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                page: parseInt(params.get('page')) || 1,
+                sortBy: params.get('sortBy') || DEFAULT_SORT_BY,
+                sortDirection: params.get('sortDirection') || DEFAULT_SORT_DIRECTION
+            };
+        }
+
+        // Update URL with current state without reloading page
+        function updateUrl(page, sortBy, sortDirection) {
+            const url = new URL(window.location);
+            url.searchParams.set('page', page);
+            url.searchParams.set('sortBy', sortBy);
+            url.searchParams.set('sortDirection', sortDirection);
+            window.history.pushState({ page, sortBy, sortDirection }, '', url);
+        }
+
+        // Load records from API
+        async function loadRecords(page, sortBy = null, sortDirection = null) {
+            // Update sort state if provided
+            if (sortBy !== null) currentSortBy = sortBy;
+            if (sortDirection !== null) currentSortDirection = sortDirection;
+
+            try {
+                // Show loading spinner
+                showElement('loading');
+                hideElement('error');
+                hideElement('noRecords');
+                hideElement('tableContainer');
+
+                // Fetch data with sort parameters
+                const response = await fetch(`@Url.Action(nameof(ExampleRecordController.GetRecordsJson), Name<ExampleRecordController>.Value)?page=${page}&pageSize=${pageSize}&sortBy=${currentSortBy}&sortDirection=${currentSortDirection}`);
+
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Hide loading spinner
+                hideElement('loading');
+
+                // Check if there are records
+                if (data.items.length === 0) {
+                    showElement('noRecords');
+                    return;
+                }
+
+                // Update current page
+                currentPage = data.pagination.pageNumber;
+
+                // Update URL with current state (makes it bookmarkable and supports back button)
+                updateUrl(currentPage, currentSortBy, currentSortDirection);
+
+                // Render table
+                renderTable(data.items);
+
+                // Render pagination
+                renderPagination(data.pagination);
+
+                // Update sort indicators
+                updateSortIndicators();
+
+                // Show table
+                showElement('tableContainer');
+
+            } catch (error) {
+                console.error('Error loading records:', error);
+                hideElement('loading');
+                showElement('error');
+                document.getElementById('error').textContent = `Failed to load records: ${error.message}`;
+            }
+        }
+
+        // Render table rows
+        function renderTable(items) {
+            const tbody = document.getElementById('recordsTableBody');
+            tbody.innerHTML = '';
+
+            items.forEach(record => {
+                const row = document.createElement('tr');
+
+                const statusBadge = record.IsActive
+                    ? '<span class="badge bg-success">Active</span>'
+                    : '<span class="badge bg-secondary">Inactive</span>';
+
+                const birthdate = new Date(record.Birthdate).toLocaleDateString();
+
+                row.innerHTML = `
+                    <td>${record.ExampleRecordID}</td>
+                    <td>${escapeHtml(record.Name)}</td>
+                    <td>${record.Age}</td>
+                    <td>${birthdate}</td>
+                    <td>${statusBadge}</td>
+                `;
+
+                tbody.appendChild(row);
+            });
+        }
+
+        // Render pagination controls
+        function renderPagination(pagination) {
+            // Update info text
+            const startRecord = (pagination.pageNumber - 1) * pagination.pageSize + 1;
+            const endRecord = Math.min(pagination.pageNumber * pagination.pageSize, pagination.totalCount);
+
+            document.getElementById('paginationInfo').textContent =
+                `Showing ${startRecord} to ${endRecord} of ${pagination.totalCount} records`;
+
+            document.getElementById('pageInfo').textContent =
+                `Page ${pagination.pageNumber} of ${pagination.totalPages}`;
+
+            // Build pagination controls
+            const controls = document.getElementById('paginationControls');
+            controls.innerHTML = '';
+
+            // Previous button
+            const prevLi = createPageButton('Previous', pagination.pageNumber - 1, !pagination.hasPreviousPage);
+            prevLi.querySelector('a').innerHTML = '<span aria-hidden="true">&laquo; Previous</span>';
+            controls.appendChild(prevLi);
+
+            // Calculate page range
+            const startPage = Math.max(1, pagination.pageNumber - 2);
+            const endPage = Math.min(pagination.totalPages, pagination.pageNumber + 2);
+
+            // First page + ellipsis
+            if (startPage > 1) {
+                controls.appendChild(createPageButton('1', 1, false));
+                if (startPage > 2) {
+                    const ellipsis = document.createElement('li');
+                    ellipsis.className = 'page-item disabled';
+                    ellipsis.innerHTML = '<span class="page-link">...</span>';
+                    controls.appendChild(ellipsis);
+                }
+            }
+
+            // Page numbers
+            for (let i = startPage; i <= endPage; i++) {
+                const isActive = i === pagination.pageNumber;
+                controls.appendChild(createPageButton(i.toString(), i, false, isActive));
+            }
+
+            // Last page + ellipsis
+            if (endPage < pagination.totalPages) {
+                if (endPage < pagination.totalPages - 1) {
+                    const ellipsis = document.createElement('li');
+                    ellipsis.className = 'page-item disabled';
+                    ellipsis.innerHTML = '<span class="page-link">...</span>';
+                    controls.appendChild(ellipsis);
+                }
+                controls.appendChild(createPageButton(pagination.totalPages.toString(), pagination.totalPages, false));
+            }
+
+            // Next button
+            const nextLi = createPageButton('Next', pagination.pageNumber + 1, !pagination.hasNextPage);
+            nextLi.querySelector('a').innerHTML = '<span aria-hidden="true">Next &raquo;</span>';
+            controls.appendChild(nextLi);
+        }
+
+        // Create a page button
+        function createPageButton(text, pageNumber, disabled, active = false) {
+            const li = document.createElement('li');
+            li.className = 'page-item';
+
+            if (disabled) li.classList.add('disabled');
+            if (active) li.classList.add('active');
+
+            const a = document.createElement('a');
+            a.className = 'page-link';
+            a.href = '#';
+            a.textContent = text;
+
+            if (!disabled) {
+                a.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    loadRecords(pageNumber);
+                });
+            }
+
+            li.appendChild(a);
+            return li;
+        }
+
+        // Helper functions
+        function showElement(id) {
+            document.getElementById(id).style.display = '';
+        }
+
+        function hideElement(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Update sort indicators in table headers
+        function updateSortIndicators() {
+            const headers = document.querySelectorAll('.sortable');
+            headers.forEach(header => {
+                const column = header.dataset.column;
+                const indicator = header.querySelector('.sort-indicator');
+
+                if (column.toLowerCase() === currentSortBy.toLowerCase()) {
+                    indicator.textContent = currentSortDirection === ASC ? ' ▲' : ' ▼';
+                } else {
+                    indicator.textContent = '';
+                }
+            });
+        }
+
+        // Handle column header clicks for sorting
+        function handleColumnClick(columnName) {
+            // If clicking same column, toggle direction; otherwise start with asc
+            if (columnName.toLowerCase() === currentSortBy.toLowerCase()) {
+                currentSortDirection = currentSortDirection === ASC ? DESC : ASC;
+            } else {
+                currentSortBy = columnName;
+                currentSortDirection = ASC;
+            }
+
+            // Reload with page 1 and new sort
+            loadRecords(1, currentSortBy, currentSortDirection);
+        }
+
+        // Initialize sort handlers and load first page
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add click handlers to sortable headers
+            const headers = document.querySelectorAll('.sortable');
+            headers.forEach(header => {
+                header.addEventListener('click', () => {
+                    const column = header.dataset.column;
+                    handleColumnClick(column);
+                });
+            });
+
+            // Read initial state from URL (supports bookmarking and refresh)
+            const initialState = getStateFromUrl();
+            currentPage = initialState.page;
+            currentSortBy = initialState.sortBy;
+            currentSortDirection = initialState.sortDirection;
+
+            // Load page with state from URL
+            loadRecords(currentPage, currentSortBy, currentSortDirection);
+        });
+
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', (event) => {
+            if (event.state) {
+                // State was saved, use it
+                loadRecords(event.state.page, event.state.sortBy, event.state.sortDirection);
+            } else {
+                // No state, read from URL
+                const state = getStateFromUrl();
+                loadRecords(state.page, state.sortBy, state.sortDirection);
+            }
+        });
+    </script>
+}
