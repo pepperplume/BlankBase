@@ -30,7 +30,7 @@ Application URLs:
 
 - **Program.cs**: Entry point, middleware configuration, service registration (Toast, UnitOfWork)
 - **Controllers/**: MVC controllers (HomeController, ToastController, ExampleRecordController)
-- **Models/**: Data models, view models, toast models
+- **Models/**: Data models, view models, toast models, PaginationServerSideViewModel
 - **Data/**: Repository pattern with EF Core
   - Context, IRepository, Repository (with ApplySort helper)
   - IUnitOfWork, UnitOfWork
@@ -38,9 +38,14 @@ Application URLs:
   - Entities/, Repositories/, SortColumns/ (nameof() constants)
 - **Services/**: IToastService, ToastService
 - **Extensions/**: TempDataExtensions (toast helpers)
-- **Helpers/**: Name.cs (type-safe controller routing)
-- **Views/**: Razor views by controller + Shared/
-- **wwwroot/**: Static files (js/toast.js, css/, lib/)
+- **Helpers/**: Name.cs (type-safe controller routing), PartialViews.cs (type-safe partial view references)
+- **Views/**: Razor views by controller + Shared/ (_PaginationServerSide.cshtml, _ToastContainer.cshtml)
+- **wwwroot/js/**: JavaScript utility classes
+  - toast.js (Toast class - notification system)
+  - dom.js (Dom class - DOM manipulation utilities)
+  - pagination.js (AjaxPagination class - AJAX pagination with sorting)
+  - template-renderer.js (TemplateRenderer class - HTML template population)
+- **wwwroot/**: Static files (css/, lib/)
 
 ## Type-Safe Routing Pattern
 
@@ -62,6 +67,64 @@ Uses `Name<T>` helper class to eliminate magic strings in routing. See `Helpers/
 **Benefits:** Compile-time safety, refactoring support, IntelliSense, no runtime errors.
 
 **Configuration:** Available via `_ViewImports.cshtml` imports (`BlankBase.Helpers`, `BlankBase.Controllers`).
+
+## Type-Safe Partial View References
+
+Uses `PartialViews` static class to eliminate magic strings when referencing partial views. See `Helpers/PartialViews.cs`.
+
+**Usage:**
+```cshtml
+<!-- Instead of magic strings: -->
+@await Html.PartialAsync("_PaginationServerSide", model)
+
+<!-- Use type-safe constants: -->
+@await Html.PartialAsync(PartialViews.PaginationServerSide, model)
+```
+
+**Available Constants:**
+- `PartialViews.PaginationServerSide` - _PaginationServerSide.cshtml
+- `PartialViews.ToastContainer` - _ToastContainer.cshtml
+- `PartialViews.ValidationScripts` - _ValidationScriptsPartial.cshtml
+
+**Convention:**
+1. **Creating new partial** → Immediately add constant to `PartialViews.cs`
+2. **Renaming partial** → Update constant value in `PartialViews.cs` (find-all-references shows usages)
+3. **Deleting partial** → Remove constant (compiler shows what breaks)
+
+**Benefits:**
+- Single source of truth (change string in ONE place)
+- IntelliSense support
+- Find-all-references works
+- Refactoring support
+- Consistent with `SortColumns` pattern
+
+**Configuration:** Available via `_ViewImports.cshtml` imports (`BlankBase.Helpers`).
+
+## Reusable Pagination Component
+
+**PaginationServerSideViewModel** - Reusable view model for traditional server-side pagination.
+
+**Usage in Views:**
+```cshtml
+@await Html.PartialAsync(PartialViews.PaginationServerSide, PaginationServerSideViewModel.FromPagedResult(
+    Model.PagedResult,
+    Model.SortBy,
+    Model.SortDirection,
+    Name<YourController>.Value,
+    nameof(YourController.YourAction)
+))
+```
+
+**Features:**
+- Renders pagination info ("Showing X to Y of Z records")
+- Renders pagination controls (Previous/Next, page numbers with ellipsis)
+- Maintains sort state across page navigation
+- Fully reusable across any controller/action with server-side pagination
+
+**Components:**
+- **Model**: `Models/PaginationServerSideViewModel.cs` (FromPagedResult factory method)
+- **View**: `Views/Shared/_PaginationServerSide.cshtml`
+- **Example**: `ExampleRecord/Index.cshtml:77`
 
 ## Architecture Notes
 
@@ -122,10 +185,12 @@ builder.Services.Configure<ToastDefaultOptions>(options => { /* ... */ });
 - **Services**: IToastService (TempData methods + JSON methods), ToastService
 - **Models**: ToastNotification, ToastType enum, ToastDefaultOptions
 - **Extensions**: TempDataExtensions (AddToast, GetToasts, JsonOptions)
-- **JavaScript**: wwwroot/js/toast.js (Toast.show, Toast.create, Toast.showMessages)
+- **JavaScript**: wwwroot/js/toast.js (Toast class with `#` private members)
 - **Views**: _ToastContainer.cshtml (auto-initialization from TempData)
 
 **Demo Controllers/Views:** ToastController, Toast/Index, Toast/FormExample
+
+**Note:** See "JavaScript Utility Classes" section for detailed Toast class documentation.
 
 ## Repository Pattern with Pagination and Sorting
 
@@ -152,6 +217,9 @@ Generic Repository + Unit of Work pattern with server-side pagination and type-s
 - No page reload
 - URL updated via History API (bookmarkable, refresh, back/forward support)
 - Fetch API for data loading
+- Uses AjaxPagination class for pagination controls
+- Uses TemplateRenderer class for table rendering
+- Uses Dom class for show/hide state management
 
 ### Repository Implementation Pattern
 
@@ -309,3 +377,266 @@ See `Controllers/ExampleRecordController.cs:102` for a complete demonstration sh
 - Explicit - clear when caching is being used
 - Flexible - create multiple caches with different configurations if needed
 - Lightweight - no overhead when not in use
+
+## JavaScript Utility Classes
+
+Modern JavaScript utilities using ES2022+ class patterns with true privacy (`#` private fields). All utilities follow consistent patterns: static methods for singleton-like behavior, clear descriptive names (no cryptic `$()`), and Bootstrap integration where possible.
+
+### Design Principles
+
+- **Class-based with static methods** - Matches C# static utility class pattern
+- **True privacy with `#`** - Private fields/methods use `#` prefix (enforced by language, not convention)
+- **No `_` convention** - Modern JS uses `#` for actual privacy, not underscore naming
+- **Bootstrap integration** - Leverage existing Bootstrap classes (`d-none`, `fade`, etc.)
+- **Accessibility built-in** - `aria-hidden` attributes automatically managed
+- **Consistent naming** - `Toast`, `Dom`, `TemplateRenderer`, `AjaxPagination` (not `*Utils`)
+
+### Toast Class
+
+Refactored from object literal to class with `#` private members. Handles Bootstrap toast notifications with three integration patterns.
+
+**File:** `wwwroot/js/toast.js`
+
+**Usage:**
+```javascript
+// Client-side toast
+Toast.create("Operation successful", Toast.Type.SUCCESS, 3000, true);
+
+// Server response with toastMessages array
+fetch(url, {...}).then(r => r.json()).then(data => Toast.showMessages(data));
+```
+
+**Public API:**
+- `Toast.Type` - Frozen enum (SUCCESS, WARNING, ERROR)
+- `Toast.show(config)` - Display toast from config object (PascalCase and camelCase support)
+- `Toast.create(messageText, messageType, duration, autoHide)` - Convenience method
+- `Toast.showMessages(response)` - Process server response with toastMessages array
+
+**Private members:**
+- `#CONTAINER_ID` - Toast container element ID
+- `#idCounter` - Counter for unique toast IDs
+- `#CONFIG` - Toast type configuration (bg classes, icons, titles)
+- `#createElement(id, message, type)` - Build toast DOM element
+
+**Key features:**
+- Handles both PascalCase (C# JSON) and camelCase (JavaScript)
+- Auto-initialization from TempData via `data-initial-toasts` attribute
+- Automatic cleanup after toast hidden
+- Bootstrap toast component integration
+
+### Dom Utility Class
+
+DOM manipulation utilities for element visibility, transitions, and class management. Leverages Bootstrap's `d-none` class and includes accessibility support.
+
+**File:** `wwwroot/js/dom.js`
+
+**Usage:**
+```javascript
+// Query elements
+const element = Dom.get('#myElement');
+const items = Dom.getAll('.item');
+
+// Show/hide
+Dom.show('#content');
+Dom.hide('#loading');
+Dom.toggle('#menu');
+
+// Conditional (React-style)
+Dom.showIf('#error', hasError);
+Dom.hideIf('#content', isLoading);
+
+// Transitions
+Dom.fadeOut('#loading', 300, () => {
+    Dom.fadeIn('#content', 300);
+});
+
+// Class utilities
+Dom.addClass('#element', 'active');
+Dom.removeClass('#element', 'disabled');
+Dom.toggleClass('#menu', 'open');
+```
+
+**Query methods:**
+- `Dom.get(selector)` - Get single element (optimized for ID selectors)
+- `Dom.getAll(selector)` - Get all matching elements as Array (not NodeList)
+
+**Show/Hide (Bootstrap-powered):**
+- `Dom.show(selector)` - Remove `d-none`, set `aria-hidden="false"`
+- `Dom.hide(selector)` - Add `d-none`, set `aria-hidden="true"`
+- `Dom.toggle(selector)` - Toggle `d-none` class
+
+**Conditional visibility:**
+- `Dom.showIf(selector, condition)` - Show if true, hide if false
+- `Dom.hideIf(selector, condition)` - Hide if true, show if false
+
+**Multiple elements:**
+- `Dom.showAll(selector)` - Show all matching elements
+- `Dom.hideAll(selector)` - Hide all matching elements
+
+**CSS transitions:**
+- `Dom.fadeIn(selector, duration)` - Fade in with CSS transition
+- `Dom.fadeOut(selector, duration, callback)` - Fade out with callback
+
+**Class utilities:**
+- `Dom.addClass(selector, className)` - Add class to element
+- `Dom.removeClass(selector, className)` - Remove class from element
+- `Dom.toggleClass(selector, className)` - Toggle class on element
+
+**Utility methods:**
+- `Dom.isVisible(selector)` - Check if element is visible
+
+**Key features:**
+- Bootstrap `d-none` class instead of inline styles
+- Accessibility via `aria-hidden` attributes
+- ID selector optimization (fast path for `#elementId`)
+- Accepts selector string or Element object
+- CSS transition support for animations
+
+### AjaxPagination Class
+
+Reusable AJAX pagination controls with URL state management and optional column sorting. Handles pagination rendering, URL synchronization, and browser navigation.
+
+**File:** `wwwroot/js/pagination.js`
+
+**Usage:**
+```javascript
+const pagination = new AjaxPagination({
+    controlsContainer: 'paginationControls',
+    infoContainer: 'paginationInfo',
+    pageInfoContainer: 'pageInfo',
+    onPageChange: (page, sortBy, sortDir) => loadRecords(page, sortBy, sortDir),
+    urlParams: { page: 'page', sortBy: 'sortBy', sortDirection: 'sortDirection' },
+    defaults: { page: 1, sortBy: 'Name', sortDirection: 'asc' },
+    sorting: {
+        enabled: true,
+        headerSelector: '.sortable',
+        columnAttribute: 'data-column',
+        sortConstants: { asc: ASC, desc: DESC },
+        indicators: { asc: ' ▲', desc: ' ▼', none: '' }
+    }
+});
+
+// After fetching data from API:
+pagination.render(data.pagination, currentSortBy, currentSortDirection);
+```
+
+**Constructor options:**
+- `controlsContainer` - ID of element for pagination buttons
+- `infoContainer` - ID of element for "Showing X to Y of Z" text
+- `pageInfoContainer` - ID of element for "Page X of Y" text
+- `onPageChange` - Callback when page changes: `(page, sortBy, sortDirection) => {}`
+- `urlParams` - URL parameter names (customizable)
+- `defaults` - Default values for page, sortBy, sortDirection
+- `sorting` - Optional sorting configuration
+
+**Public methods:**
+- `render(pagination, sortBy, sortDirection)` - Render pagination controls and update URL
+- `getStateFromUrl()` - Read state from URL query parameters
+- `updateUrl(page, sortBy, sortDirection)` - Update URL without page reload
+- `getCurrentPage()` - Get current page number
+- `getCurrentSort()` - Get current sort state
+- `handleColumnClick(columnName)` - Handle column header click (if sorting enabled)
+- `updateSortIndicators()` - Update sort indicators in headers (if sorting enabled)
+
+**Sorting configuration:**
+- `enabled` - Enable/disable sorting (default: false)
+- `headerSelector` - CSS selector for sortable headers (default: `.sortable`)
+- `columnAttribute` - Data attribute for column name (default: `data-column`)
+- `sortConstants` - ASC/DESC values (for C# constant integration)
+- `indicators` - Sort indicator symbols (default: ▲/▼)
+
+**Key features:**
+- URL state management via History API (bookmarkable URLs)
+- Browser back/forward button support (popstate events)
+- Bootstrap pagination classes
+- Integrated sorting with visual indicators
+- Auto-attaches click handlers to sortable headers
+- Configurable URL parameters and defaults
+
+**Example:** See `ExampleRecord/AjaxExample.cshtml` for complete implementation
+
+### TemplateRenderer Class
+
+Generic utility for populating HTML `<template>` elements with data using data attributes. Enables defining table structure in Razor/HTML instead of JavaScript.
+
+**File:** `wwwroot/js/template-renderer.js`
+
+**Usage:**
+```cshtml
+<!-- Define structure in HTML template -->
+<template id="recordRowTemplate">
+    <tr>
+        <td data-field="ExampleRecordID"></td>
+        <td data-field="Name"></td>
+        <td data-field="Age"></td>
+        <td data-field="Birthdate" data-format="date"></td>
+        <td>
+            <span data-field="IsActive"
+                  data-true-class="badge bg-success"
+                  data-false-class="badge bg-secondary"
+                  data-true-text="Active"
+                  data-false-text="Inactive"></span>
+        </td>
+    </tr>
+</template>
+
+<script>
+// JavaScript just populates from data
+TemplateRenderer.render('recordRowTemplate', 'recordsTableBody', items);
+</script>
+```
+
+**Public methods:**
+- `TemplateRenderer.populate(templateNode, data)` - Populate cloned template with data
+- `TemplateRenderer.render(templateId, containerId, items, beforeAppend)` - Render list of items
+
+**Data attribute conventions:**
+- `data-field="PropertyName"` - Populate from `data.PropertyName`
+- `data-format="date"` - Format as localized date
+- `data-format="datetime"` - Format as localized datetime
+- `data-format="html"` - Insert as raw HTML (use with caution!)
+- Boolean mapping:
+  - `data-true-class` / `data-false-class` - Apply class based on boolean
+  - `data-true-text` / `data-false-text` - Set text based on boolean
+
+**Private methods:**
+- `#handleBooleanField(element, value)` - Handle boolean to badge/class mapping
+- `#formatDate(value)` - Format dates
+- `#formatDateTime(value)` - Format datetimes
+
+**Key features:**
+- HTML structure lives in Razor (edit styling without touching JS)
+- Automatic HTML escaping by default (security)
+- Boolean to badge/class mapping (Bootstrap badges)
+- Supports multiple space-separated classes
+- Reusable across any template + data combination
+
+**Benefits:**
+- ✅ Change table styling in HTML/CSS (no JavaScript edits)
+- ✅ Reorder columns in Razor (structure where it belongs)
+- ✅ Add/remove fields easily (just update template)
+- ⚠️ Only touch JavaScript when structure fundamentally changes
+
+**Example:** See `ExampleRecord/AjaxExample.cshtml` for complete implementation
+
+### JavaScript Class Pattern Notes
+
+**Why classes over object literals?**
+- True privacy with `#` (vs fake privacy with `_`)
+- Modern JavaScript standard (ES2022+)
+- Consistent with C# static utility classes
+- Can add instance methods later if needed
+
+**`#` vs `_` for privacy:**
+- `_underscore` - Convention only (not enforced, old pattern)
+- `#hash` - Language-enforced privacy (modern, recommended)
+- Object literals can't use `#` (class-only feature)
+
+**Browser support for `#` private fields:**
+- Chrome 74+ (2019), Firefox 90+ (2021), Safari 14.1+ (2021), Edge 79+ (2020)
+- Not supported in IE11 (but project targets modern browsers)
+
+**Naming convention:**
+- Use clear names: `Toast`, `Dom`, `TemplateRenderer` (not `ToastUtils`)
+- Match C# naming: `StringHelper`, `MathUtils` pattern
+- Avoid cryptic symbols: No `$()` (confusing for beginners)
