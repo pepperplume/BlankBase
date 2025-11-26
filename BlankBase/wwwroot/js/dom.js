@@ -364,6 +364,127 @@ class Dom {
     }
 
     /**
+     * Disable a button or input element
+     *
+     * @param {string|Element} selector - Element selector or element
+     * @returns {void}
+     *
+     * @example
+     * Dom.disable('#submitBtn');
+     */
+    static disable(selector) {
+        const element = Dom.#getElement(selector);
+        if (!element) return;
+
+        element.disabled = true;
+    }
+
+    /**
+     * Enable a button or input element
+     *
+     * @param {string|Element} selector - Element selector or element
+     * @returns {void}
+     *
+     * @example
+     * Dom.enable('#submitBtn');
+     */
+    static enable(selector) {
+        const element = Dom.#getElement(selector);
+        if (!element) return;
+
+        element.disabled = false;
+    }
+
+    /**
+     * Toggle disabled state of a button or input element
+     *
+     * @param {string|Element} selector - Element selector or element
+     * @returns {void}
+     *
+     * @example
+     * Dom.toggleDisable('#submitBtn');
+     */
+    static toggleDisable(selector) {
+        const element = Dom.#getElement(selector);
+        if (!element) return;
+
+        element.disabled = !element.disabled;
+    }
+
+    /**
+     * Disable button and show loading state with spinner
+     * Saves original content and replaces with spinner + loading text
+     * Loading text can be customized via data-loading-text attribute (default: "Loading...")
+     *
+     * @param {string|Element} selector - Element selector or element
+     * @returns {void}
+     *
+     * @example
+     * // Default loading text
+     * Dom.disableShowLoading('#submitBtn');  // Shows "Loading..."
+     *
+     * @example
+     * // Custom loading text via data attribute
+     * // <button id="deleteBtn" data-loading-text="Deleting...">Delete</button>
+     * Dom.disableShowLoading('#deleteBtn');  // Shows "Deleting..."
+     */
+    static disableShowLoading(selector) {
+        const element = Dom.#getElement(selector);
+        if (!element) return;
+
+        // Save original content
+        element.setAttribute('data-original-content', element.innerHTML);
+
+        // Get loading text from data attribute or use default
+        const loadingText = element.getAttribute('data-loading-text') || 'Loading...';
+
+        // Replace content with spinner + loading text
+        element.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>${loadingText}`;
+
+        // Disable the button
+        element.disabled = true;
+    }
+
+    /**
+     * Enable button and restore original content
+     * Removes loading state and restores the content saved by disableShowLoading()
+     *
+     * @param {string|Element} selector - Element selector or element
+     * @returns {void}
+     *
+     * @example
+     * Dom.enableHideLoading('#submitBtn');
+     *
+     * @example
+     * // Complete async operation example
+     * Dom.disableShowLoading('#submitBtn');
+     * fetch('/api/submit', {...})
+     *     .then(response => response.json())
+     *     .then(data => {
+     *         Dom.enableHideLoading('#submitBtn');
+     *         Toast.showMessages(data);
+     *     })
+     *     .catch(error => {
+     *         Dom.enableHideLoading('#submitBtn');
+     *         Toast.create('Error!', Toast.Type.ERROR);
+     *     });
+     */
+    static enableHideLoading(selector) {
+        const element = Dom.#getElement(selector);
+        if (!element) return;
+
+        // Restore original content
+        const originalContent = element.getAttribute('data-original-content');
+        if (originalContent !== null) {
+            element.innerHTML = originalContent;
+            element.removeAttribute('data-original-content');
+        }
+
+        // Enable the button
+        element.disabled = false;
+    }
+
+    /**
      * Internal helper to resolve element from selector or element
      * Centralizes element resolution logic
      *
