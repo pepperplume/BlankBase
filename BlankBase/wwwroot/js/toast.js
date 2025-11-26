@@ -2,7 +2,7 @@
  * Toast notification system for Bootstrap toast display.
  * Used site-wide for showing user feedback messages.
  *
- * @namespace Toast
+ * @class Toast
  * @example
  * // Client-side toast
  * Toast.create("Operation successful", Toast.Type.SUCCESS, 3000, true);
@@ -11,52 +11,29 @@
  * // Server response with toastMessages array
  * Toast.showMessages(response);
  */
-
-/**
- * Toast notification object - Public API
- * @type {Object}
- */
-const Toast = {
+class Toast {
     /**
-     * Container element ID (internal use only)
+     * Container element ID (private)
      * @private
      * @type {string}
      */
-    _CONTAINER_ID: 'toastContainer',
+    static #CONTAINER_ID = 'toastContainer';
 
     /**
-     * Counter for generating unique toast IDs (internal use only)
+     * Counter for generating unique toast IDs (private)
      * Ensures unique IDs even when multiple toasts are created simultaneously
      * @private
      * @type {number}
      */
-    _idCounter: 0,
+    static #idCounter = 0;
 
     /**
-     * Toast type constants - use these when creating toasts.
-     * @readonly
-     * @enum {string}
-     * @example
-     * Toast.create("Success!", Toast.Type.SUCCESS);
-     * Toast.create("Warning!", Toast.Type.WARNING);
-     * Toast.create("Error!", Toast.Type.ERROR);
-     */
-    Type: Object.freeze({
-        /** Success message type - green background with checkmark */
-        SUCCESS: 'success',
-        /** Warning message type - yellow background with warning icon */
-        WARNING: 'warning',
-        /** Error message type - red background with X icon */
-        ERROR: 'error'
-    }),
-
-    /**
-     * Toast type configuration mapping (internal use only)
+     * Toast type configuration mapping (private)
      * Maps type strings to Bootstrap classes and display properties
      * @private
      * @type {Object.<string, {bgClass: string, icon: string, title: string}>}
      */
-    _CONFIG: {
+    static #CONFIG = {
         'success': {
             bgClass: 'bg-success text-white',
             icon: '✓',
@@ -72,7 +49,25 @@ const Toast = {
             icon: '✕',
             title: 'Error'
         }
-    },
+    };
+
+    /**
+     * Toast type constants - use these when creating toasts.
+     * @readonly
+     * @enum {string}
+     * @example
+     * Toast.create("Success!", Toast.Type.SUCCESS);
+     * Toast.create("Warning!", Toast.Type.WARNING);
+     * Toast.create("Error!", Toast.Type.ERROR);
+     */
+    static Type = Object.freeze({
+        /** Success message type - green background with checkmark */
+        SUCCESS: 'success',
+        /** Warning message type - yellow background with warning icon */
+        WARNING: 'warning',
+        /** Error message type - red background with X icon */
+        ERROR: 'error'
+    });
 
     /**
      * Display a toast notification from a configuration object.
@@ -103,7 +98,7 @@ const Toast = {
      *     AutoHide: false
      * });
      */
-    show: function(config) {
+    static show(config) {
         // Extract values, handling both PascalCase and camelCase
         const messageText = config.messageText || config.MessageText;
         const messageType = config.messageType || config.MessageType;
@@ -113,11 +108,11 @@ const Toast = {
                         (config.AutoHide !== undefined ? config.AutoHide : true);
 
         // Generate unique ID using timestamp + counter to handle multiple toasts created simultaneously
-        const toastId = 'toast-' + Date.now() + '-' + (++this._idCounter);
-        const toast = this._createElement(toastId, messageText, messageType);
+        const toastId = 'toast-' + Date.now() + '-' + (++Toast.#idCounter);
+        const toast = Toast.#createElement(toastId, messageText, messageType);
 
         // Append to container
-        document.getElementById(this._CONTAINER_ID).appendChild(toast);
+        document.getElementById(Toast.#CONTAINER_ID).appendChild(toast);
 
         // Initialize and show the toast
         const toastElement = document.getElementById(toastId);
@@ -132,7 +127,7 @@ const Toast = {
         toastElement.addEventListener('hidden.bs.toast', function () {
             toastElement.remove();
         });
-    },
+    }
 
     /**
      * Convenience method for creating toasts with individual parameters.
@@ -157,14 +152,14 @@ const Toast = {
      *     Toast.create('You must be 18 or older', Toast.Type.WARNING, 4000, true);
      * }
      */
-    create: function(messageText, messageType, duration, autoHide) {
-        return this.show({
+    static create(messageText, messageType, duration, autoHide) {
+        return Toast.show({
             messageText: messageText,
             messageType: messageType,
             duration: duration,
             autoHide: autoHide
         });
-    },
+    }
 
     /**
      * Process server response and display toast messages.
@@ -194,7 +189,7 @@ const Toast = {
      * //   ]
      * // }
      */
-    showMessages: function(response) {
+    static showMessages(response) {
         // Early return if no toastMessages
         if (!response || !response.toastMessages || !Array.isArray(response.toastMessages)) {
             return;
@@ -202,12 +197,12 @@ const Toast = {
 
         // Display each toast
         response.toastMessages.forEach(toast => {
-            this.show(toast);
+            Toast.show(toast);
         });
-    },
+    }
 
     /**
-     * Create toast DOM element (internal use only).
+     * Create toast DOM element (private)
      * Generates a Bootstrap toast element with the appropriate styling and content.
      *
      * @private
@@ -216,9 +211,9 @@ const Toast = {
      * @param {string} type - Toast type ('success', 'warning', or 'error')
      * @returns {HTMLDivElement} The created toast DOM element
      */
-    _createElement: function(id, message, type) {
+    static #createElement(id, message, type) {
         // Get configuration for the toast type (case-insensitive, default to success)
-        const config = this._CONFIG[type.toLowerCase()] || this._CONFIG[this.Type.SUCCESS];
+        const config = Toast.#CONFIG[type.toLowerCase()] || Toast.#CONFIG[Toast.Type.SUCCESS];
 
         // Create toast HTML
         const toastDiv = document.createElement('div');
@@ -231,7 +226,7 @@ const Toast = {
         toastDiv.innerHTML = `
             <div class="toast-header ${config.bgClass}">
                 <strong class="me-auto">${config.icon} ${config.title}</strong>
-                <button type="button" class="btn-close ${type.toLowerCase() === this.Type.WARNING ? '' : 'btn-close-white'}" data-bs-dismiss="toast" aria-label="Close"></button>
+                <button type="button" class="btn-close ${type.toLowerCase() === Toast.Type.WARNING ? '' : 'btn-close-white'}" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
             <div class="toast-body">
                 ${message}
@@ -240,7 +235,7 @@ const Toast = {
 
         return toastDiv;
     }
-};
+}
 
 /**
  * Auto-initialize toasts from server (TempData).
@@ -250,7 +245,6 @@ const Toast = {
  * This enables the Post-Redirect-Get pattern where toasts are queued during POST
  * and displayed after redirect to GET.
  *
- * @listens DOMContentLoaded
  * @example
  * // Server-side (C#):
  * // TempData.AddToast("Welcome!", ToastType.Success);
@@ -259,8 +253,8 @@ const Toast = {
  * // Client-side:
  * // On page load, this handler automatically displays the "Welcome!" toast
  */
-document.addEventListener('DOMContentLoaded', function() {
-    const container = document.getElementById(Toast._CONTAINER_ID);
+Dom.whenLoaded(function() {
+    const container = document.getElementById('toastContainer');
 
     if (container && container.hasAttribute('data-initial-toasts')) {
         const initialToastsJson = container.getAttribute('data-initial-toasts');

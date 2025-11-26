@@ -54,6 +54,23 @@
             </table>
         </div>
 
+        <!-- Row Template (modify structure here - no JavaScript needed!) -->
+        <template id="recordRowTemplate">
+            <tr>
+                <td data-field="ExampleRecordID"></td>
+                <td data-field="Name"></td>
+                <td data-field="Age"></td>
+                <td data-field="Birthdate" data-format="date"></td>
+                <td>
+                    <span data-field="IsActive"
+                          data-true-class="badge bg-success"
+                          data-false-class="badge bg-secondary"
+                          data-true-text="Active"
+                          data-false-text="Inactive"></span>
+                </td>
+            </tr>
+        </template>
+
         <!-- Pagination Info -->
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div id="paginationInfo" class="text-muted"></div>
@@ -81,6 +98,9 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/dom.js"></script>
+    <script src="~/js/pagination.js"></script>
+    <script src="~/js/template-renderer.js"></script>
     <script>
         // Sort direction constants (rendered from C# constants)
         const ASC = '@SortDirections.Asc';
@@ -90,30 +110,27 @@
         const DEFAULT_SORT_BY = '@ExampleRecordSortColumns.Name';
         const DEFAULT_SORT_DIRECTION = ASC;
 
-        // Current page and sort state (will be initialized from URL)
-        let currentPage = 1;
+        // Current sort state (will be initialized from URL)
         let currentSortBy = DEFAULT_SORT_BY;
         let currentSortDirection = DEFAULT_SORT_DIRECTION;
         const pageSize = 10;
 
-        // Read state from URL parameters
-        function getStateFromUrl() {
-            const params = new URLSearchParams(window.location.search);
-            return {
-                page: parseInt(params.get('page')) || 1,
-                sortBy: params.get('sortBy') || DEFAULT_SORT_BY,
-                sortDirection: params.get('sortDirection') || DEFAULT_SORT_DIRECTION
-            };
-        }
-
-        // Update URL with current state without reloading page
-        function updateUrl(page, sortBy, sortDirection) {
-            const url = new URL(window.location);
-            url.searchParams.set('page', page);
-            url.searchParams.set('sortBy', sortBy);
-            url.searchParams.set('sortDirection', sortDirection);
-            window.history.pushState({ page, sortBy, sortDirection }, '', url);
-        }
+        // Initialize reusable pagination component with integrated sorting
+        const pagination = new AjaxPagination({
+            controlsContainer: 'paginationControls',
+            infoContainer: 'paginationInfo',
+            pageInfoContainer: 'pageInfo',
+            onPageChange: (page, sortBy, sortDirection) => loadRecords(page, sortBy, sortDirection),
+            urlParams: { page: 'page', sortBy: 'sortBy', sortDirection: 'sortDirection' },
+            defaults: { page: 1, sortBy: DEFAULT_SORT_BY, sortDirection: DEFAULT_SORT_DIRECTION },
+            sorting: {
+                enabled: true,
+                headerSelector: '.sortable',
+                columnAttribute: 'data-column',
+                sortConstants: { asc: ASC, desc: DESC },
+                indicators: { asc: ' ▲', desc: ' ▼', none: '' }
+            }
+        });
 
         // Load records from API
         async function loadRecords(page, sortBy = null, sortDirection = null) {
@@ -123,10 +140,10 @@
 
             try {
                 // Show loading spinner
-                showElement('loading');
-                hideElement('error');
-                hideElement('noRecords');
-                hideElement('tableContainer');
+                Dom.show('#loading');
+                Dom.hide('#error');
+                Dom.hide('#noRecords');
+                Dom.hide('#tableContainer');
 
                 // Fetch data with sort parameters
                 const response = await fetch(`@Url.Action(nameof(ExampleRecordController.GetRecordsJson), Name<ExampleRecordController>.Value)?page=${page}&pageSize=${pageSize}&sortBy=${currentSortBy}&sortDirection=${currentSortDirection}`);
@@ -138,224 +155,45 @@
                 const data = await response.json();
 
                 // Hide loading spinner
-                hideElement('loading');
+                Dom.hide('#loading');
 
                 // Check if there are records
                 if (data.items.length === 0) {
-                    showElement('noRecords');
+                    Dom.show('#noRecords');
                     return;
                 }
 
-                // Update current page
-                currentPage = data.pagination.pageNumber;
-
-                // Update URL with current state (makes it bookmarkable and supports back button)
-                updateUrl(currentPage, currentSortBy, currentSortDirection);
-
-                // Render table
+                // Render table (page-specific)
                 renderTable(data.items);
 
-                // Render pagination
-                renderPagination(data.pagination);
-
-                // Update sort indicators
-                updateSortIndicators();
+                // Render pagination controls and sort indicators (reusable component)
+                pagination.render(data.pagination, currentSortBy, currentSortDirection);
 
                 // Show table
-                showElement('tableContainer');
+                Dom.show('#tableContainer');
 
             } catch (error) {
                 console.error('Error loading records:', error);
-                hideElement('loading');
-                showElement('error');
-                document.getElementById('error').textContent = `Failed to load records: ${error.message}`;
+                Dom.hide('#loading');
+                Dom.show('#error');
+                Dom.get('#error').textContent = `Failed to load records: ${error.message}`;
             }
         }
 
-        // Render table rows
+        // Render table rows using template (structure defined in HTML template above)
         function renderTable(items) {
-            const tbody = document.getElementById('recordsTableBody');
-            tbody.innerHTML = '';
-
-            items.forEach(record => {
-                const row = document.createElement('tr');
-
-                const statusBadge = record.IsActive
-                    ? '<span class="badge bg-success">Active</span>'
-                    : '<span class="badge bg-secondary">Inactive</span>';
-
-                const birthdate = new Date(record.Birthdate).toLocaleDateString();
-
-                row.innerHTML = `
-                    <td>${record.ExampleRecordID}</td>
-                    <td>${escapeHtml(record.Name)}</td>
-                    <td>${record.Age}</td>
-                    <td>${birthdate}</td>
-                    <td>${statusBadge}</td>
-                `;
-
-                tbody.appendChild(row);
-            });
+            TemplateRenderer.render('recordRowTemplate', 'recordsTableBody', items);
         }
 
-        // Render pagination controls
-        function renderPagination(pagination) {
-            // Update info text
-            const startRecord = (pagination.pageNumber - 1) * pagination.pageSize + 1;
-            const endRecord = Math.min(pagination.pageNumber * pagination.pageSize, pagination.totalCount);
-
-            document.getElementById('paginationInfo').textContent =
-                `Showing ${startRecord} to ${endRecord} of ${pagination.totalCount} records`;
-
-            document.getElementById('pageInfo').textContent =
-                `Page ${pagination.pageNumber} of ${pagination.totalPages}`;
-
-            // Build pagination controls
-            const controls = document.getElementById('paginationControls');
-            controls.innerHTML = '';
-
-            // Previous button
-            const prevLi = createPageButton('Previous', pagination.pageNumber - 1, !pagination.hasPreviousPage);
-            prevLi.querySelector('a').innerHTML = '<span aria-hidden="true">&laquo; Previous</span>';
-            controls.appendChild(prevLi);
-
-            // Calculate page range
-            const startPage = Math.max(1, pagination.pageNumber - 2);
-            const endPage = Math.min(pagination.totalPages, pagination.pageNumber + 2);
-
-            // First page + ellipsis
-            if (startPage > 1) {
-                controls.appendChild(createPageButton('1', 1, false));
-                if (startPage > 2) {
-                    const ellipsis = document.createElement('li');
-                    ellipsis.className = 'page-item disabled';
-                    ellipsis.innerHTML = '<span class="page-link">...</span>';
-                    controls.appendChild(ellipsis);
-                }
-            }
-
-            // Page numbers
-            for (let i = startPage; i <= endPage; i++) {
-                const isActive = i === pagination.pageNumber;
-                controls.appendChild(createPageButton(i.toString(), i, false, isActive));
-            }
-
-            // Last page + ellipsis
-            if (endPage < pagination.totalPages) {
-                if (endPage < pagination.totalPages - 1) {
-                    const ellipsis = document.createElement('li');
-                    ellipsis.className = 'page-item disabled';
-                    ellipsis.innerHTML = '<span class="page-link">...</span>';
-                    controls.appendChild(ellipsis);
-                }
-                controls.appendChild(createPageButton(pagination.totalPages.toString(), pagination.totalPages, false));
-            }
-
-            // Next button
-            const nextLi = createPageButton('Next', pagination.pageNumber + 1, !pagination.hasNextPage);
-            nextLi.querySelector('a').innerHTML = '<span aria-hidden="true">Next &raquo;</span>';
-            controls.appendChild(nextLi);
-        }
-
-        // Create a page button
-        function createPageButton(text, pageNumber, disabled, active = false) {
-            const li = document.createElement('li');
-            li.className = 'page-item';
-
-            if (disabled) li.classList.add('disabled');
-            if (active) li.classList.add('active');
-
-            const a = document.createElement('a');
-            a.className = 'page-link';
-            a.href = '#';
-            a.textContent = text;
-
-            if (!disabled) {
-                a.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    loadRecords(pageNumber);
-                });
-            }
-
-            li.appendChild(a);
-            return li;
-        }
-
-        // Helper functions
-        function showElement(id) {
-            document.getElementById(id).style.display = '';
-        }
-
-        function hideElement(id) {
-            document.getElementById(id).style.display = 'none';
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // Update sort indicators in table headers
-        function updateSortIndicators() {
-            const headers = document.querySelectorAll('.sortable');
-            headers.forEach(header => {
-                const column = header.dataset.column;
-                const indicator = header.querySelector('.sort-indicator');
-
-                if (column.toLowerCase() === currentSortBy.toLowerCase()) {
-                    indicator.textContent = currentSortDirection === ASC ? ' ▲' : ' ▼';
-                } else {
-                    indicator.textContent = '';
-                }
-            });
-        }
-
-        // Handle column header clicks for sorting
-        function handleColumnClick(columnName) {
-            // If clicking same column, toggle direction; otherwise start with asc
-            if (columnName.toLowerCase() === currentSortBy.toLowerCase()) {
-                currentSortDirection = currentSortDirection === ASC ? DESC : ASC;
-            } else {
-                currentSortBy = columnName;
-                currentSortDirection = ASC;
-            }
-
-            // Reload with page 1 and new sort
-            loadRecords(1, currentSortBy, currentSortDirection);
-        }
-
-        // Initialize sort handlers and load first page
-        document.addEventListener('DOMContentLoaded', () => {
-            // Add click handlers to sortable headers
-            const headers = document.querySelectorAll('.sortable');
-            headers.forEach(header => {
-                header.addEventListener('click', () => {
-                    const column = header.dataset.column;
-                    handleColumnClick(column);
-                });
-            });
-
+        // Initialize and load first page
+        Dom.whenLoaded(() => {
             // Read initial state from URL (supports bookmarking and refresh)
-            const initialState = getStateFromUrl();
-            currentPage = initialState.page;
+            const initialState = pagination.getStateFromUrl();
             currentSortBy = initialState.sortBy;
             currentSortDirection = initialState.sortDirection;
 
             // Load page with state from URL
-            loadRecords(currentPage, currentSortBy, currentSortDirection);
-        });
-
-        // Handle browser back/forward buttons
-        window.addEventListener('popstate', (event) => {
-            if (event.state) {
-                // State was saved, use it
-                loadRecords(event.state.page, event.state.sortBy, event.state.sortDirection);
-            } else {
-                // No state, read from URL
-                const state = getStateFromUrl();
-                loadRecords(state.page, state.sortBy, state.sortDirection);
-            }
+            loadRecords(initialState.page, currentSortBy, currentSortDirection);
         });
     </script>
 }
