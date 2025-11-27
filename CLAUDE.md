@@ -4,7 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ASP.NET Core 10.0 MVC web application called "BlankBase" - a template-based project following conventional MVC architecture with Controllers, Models, and Views.
+ASP.NET Core 10.0 MVC web application called "Dexter" - a video indexing platform for content creators. Follows conventional MVC architecture with Controllers, Models, and Views.
+
+### Core Features
+
+1. **Automatic Clip Indexing** - Automatically detect and index interesting moments/clips within videos
+2. **Manual Clip Indexing** - Allow content creators to manually mark and index specific clips in their videos
+3. **Clip Search** - Search indexed clips based on descriptions and metadata
 
 ## Technology Stack
 
@@ -19,7 +25,7 @@ ASP.NET Core 10.0 MVC web application called "BlankBase" - a template-based proj
 dotnet build
 
 # Run
-dotnet run --project BlankBase/BlankBase.csproj
+dotnet run --project Dexter/Dexter.csproj
 ```
 
 Application URLs:
@@ -67,7 +73,7 @@ Uses `Name<T>` helper class to eliminate magic strings in routing. See `Helpers/
 
 **Benefits:** Compile-time safety, refactoring support, IntelliSense, no runtime errors.
 
-**Configuration:** Available via `_ViewImports.cshtml` imports (`BlankBase.Helpers`, `BlankBase.Controllers`).
+**Configuration:** Available via `_ViewImports.cshtml` imports (`Dexter.Helpers`, `Dexter.Controllers`).
 
 ## Type-Safe Partial View References
 
@@ -99,7 +105,7 @@ Uses `PartialViews` static class to eliminate magic strings when referencing par
 - Refactoring support
 - Consistent with `SortColumns` pattern
 
-**Configuration:** Available via `_ViewImports.cshtml` imports (`BlankBase.Helpers`).
+**Configuration:** Available via `_ViewImports.cshtml` imports (`Dexter.Helpers`).
 
 ## Reusable Pagination Component
 

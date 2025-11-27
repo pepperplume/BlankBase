@@ -40,7 +40,7 @@ class Toast {
             title: 'Success'
         },
         'warning': {
-            bgClass: 'bg-warning',
+            bgClass: 'bg-warning text-white',
             icon: '⚠',
             title: 'Warning'
         },

@@ -1,0 +1,231 @@
+@page "/toast-demo"
+
+<PageTitle>Toast Demo</PageTitle>
+
+<h1>Toast Notification Demo</h1>
+<p>Interactive demo of the Toast.js notification system. Click the buttons below to see different toast types and configurations.</p>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Toast Types</h5>
+            </div>
+            <div class="card-body">
+                <p>Three toast types available: Success, Warning, and Error.</p>
+
+                <button class="btn btn-success mb-2 w-100"
+                        onclick="Toast.create('Operation completed successfully!', Toast.Type.SUCCESS, 3000, true)">
+                    Success Toast
+                </button>
+
+                <button class="btn btn-warning mb-2 w-100"
+                        onclick="Toast.create('Please review this warning message.', Toast.Type.WARNING, 3000, true)">
+                    Warning Toast
+                </button>
+
+                <button class="btn btn-danger mb-2 w-100"
+                        onclick="Toast.create('An error occurred during the operation.', Toast.Type.ERROR, 3000, true)">
+                    Error Toast
+                </button>
+
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <strong>Code:</strong>
+                        <pre class="bg-light p-2 rounded"><code>Toast.create(message, Toast.Type.SUCCESS, 3000, true);</code></pre>
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Duration Options</h5>
+            </div>
+            <div class="card-body">
+                <p>Control how long toasts stay visible (in milliseconds).</p>
+
+                <button class="btn btn-primary mb-2 w-100"
+                        onclick="Toast.create('Short duration (1 second)', Toast.Type.SUCCESS, 1000, true)">
+                    1 Second
+                </button>
+
+                <button class="btn btn-primary mb-2 w-100"
+                        onclick="Toast.create('Medium duration (3 seconds)', Toast.Type.SUCCESS, 3000, true)">
+                    3 Seconds (Default)
+                </button>
+
+                <button class="btn btn-primary mb-2 w-100"
+                        onclick="Toast.create('Long duration (5 seconds)', Toast.Type.SUCCESS, 5000, true)">
+                    5 Seconds
+                </button>
+
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <strong>Code:</strong>
+                        <pre class="bg-light p-2 rounded"><code>Toast.create(message, type, <strong>5000</strong>, true);</code></pre>
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Auto-Hide vs Manual Close</h5>
+            </div>
+            <div class="card-body">
+                <p>Choose whether toasts disappear automatically or require manual dismissal.</p>
+
+                <button class="btn btn-info mb-2 w-100"
+                        onclick="Toast.create('This will auto-hide after 3 seconds', Toast.Type.SUCCESS, 3000, true)">
+                    Auto-Hide (true)
+                </button>
+
+                <button class="btn btn-info mb-2 w-100"
+                        onclick="Toast.create('Click the X to close this toast', Toast.Type.WARNING, 3000, false)">
+                    Manual Close (false)
+                </button>
+
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <strong>Code:</strong>
+                        <pre class="bg-light p-2 rounded"><code>Toast.create(message, type, duration, <strong>false</strong>);</code></pre>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Multiple Toasts</h5>
+            </div>
+            <div class="card-body">
+                <p>Stack multiple toasts at once.</p>
+
+                <button class="btn btn-secondary mb-2 w-100"
+                        onclick="Toast.create('First toast', Toast.Type.SUCCESS, 3000, true);
+                                 Toast.create('Second toast', Toast.Type.WARNING, 3000, true);
+                                 Toast.create('Third toast', Toast.Type.ERROR, 3000, true);">
+                    Show 3 Toasts
+                </button>
+
+                <button class="btn btn-secondary mb-2 w-100"
+                        onclick="for(let i = 1; i <= 5; i++) {
+                                   setTimeout(() => Toast.create('Toast #' + i, Toast.Type.SUCCESS, 2000, true), i * 300);
+                                 }">
+                    Show 5 Toasts (Staggered)
+                </button>
+
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <strong>Code:</strong>
+                        <pre class="bg-light p-2 rounded"><code>Toast.create('First', Toast.Type.SUCCESS, 3000, true);
+Toast.create('Second', Toast.Type.WARNING, 3000, true);
+Toast.create('Third', Toast.Type.ERROR, 3000, true);</code></pre>
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Using Toast.show() with Config</h5>
+            </div>
+            <div class="card-body">
+                <p>Alternative API using a configuration object.</p>
+
+                <button class="btn btn-outline-success mb-2 w-100"
+                        onclick="Toast.show({
+                                   messageText: 'Using config object',
+                                   messageType: 'success',
+                                   duration: 3000,
+                                   autoHide: true
+                                 })">
+                    Toast.show() Example
+                </button>
+
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <strong>Code:</strong>
+                        <pre class="bg-light p-2 rounded"><code>Toast.show({
+  messageText: 'Message here',
+  messageType: 'success',
+  duration: 3000,
+  autoHide: true
+});</code></pre>
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Real-World Use Cases</h5>
+            </div>
+            <div class="card-body">
+                <p>Common scenarios for toast notifications.</p>
+
+                <button class="btn btn-outline-primary mb-2 w-100"
+                        onclick="Toast.create('Profile updated successfully!', Toast.Type.SUCCESS, 3000, true)">
+                    Form Submission Success
+                </button>
+
+                <button class="btn btn-outline-warning mb-2 w-100"
+                        onclick="Toast.create('Please fill in all required fields.', Toast.Type.WARNING, 4000, true)">
+                    Validation Warning
+                </button>
+
+                <button class="btn btn-outline-danger mb-2 w-100"
+                        onclick="Toast.create('Network error: Unable to connect to server.', Toast.Type.ERROR, 5000, false)">
+                    Network Error
+                </button>
+
+                <button class="btn btn-outline-success mb-2 w-100"
+                        onclick="Toast.create('Video indexed successfully! 15 clips found.', Toast.Type.SUCCESS, 4000, true)">
+                    Video Indexing Complete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>API Reference</h5>
+            </div>
+            <div class="card-body">
+                <h6>Toast.create(messageText, messageType, duration, autoHide)</h6>
+                <ul>
+                    <li><strong>messageText</strong> (string): The message to display</li>
+                    <li><strong>messageType</strong> (string): Toast.Type.SUCCESS, Toast.Type.WARNING, or Toast.Type.ERROR</li>
+                    <li><strong>duration</strong> (number): Duration in milliseconds (e.g., 3000 = 3 seconds)</li>
+                    <li><strong>autoHide</strong> (boolean): true = auto-hide after duration, false = manual close required</li>
+                </ul>
+
+                <h6 class="mt-3">Toast.show(config)</h6>
+                <p>Alternative API accepting a configuration object with properties:</p>
+                <ul>
+                    <li><strong>messageText</strong>: The message to display</li>
+                    <li><strong>messageType</strong>: 'success', 'warning', or 'error'</li>
+                    <li><strong>duration</strong>: Duration in milliseconds</li>
+                    <li><strong>autoHide</strong>: Auto-hide boolean</li>
+                </ul>
+
+                <h6 class="mt-3">Toast.Type Constants</h6>
+                <ul>
+                    <li><strong>Toast.Type.SUCCESS</strong> - Green toast with checkmark</li>
+                    <li><strong>Toast.Type.WARNING</strong> - Yellow toast with warning icon</li>
+                    <li><strong>Toast.Type.ERROR</strong> - Red toast with error icon</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // No C# code needed - all interactions are pure JavaScript via toast.js
+}
