@@ -1,0 +1,170 @@
+﻿@*
+    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+*@
+@{
+    ViewData["Title"] = "Noiseless Demo - Glueprints Test";
+}
+
+<div class="container mt-5">
+    <h1>Glueprints Test - Color Changing Button</h1>
+    <p>Click the button below. It should change color using a Glueprint event handler.</p>
+
+    <div id="buttonContainer" class="mt-4" data-bone="colorButton">
+        <button class="btn btn-primary btn-change-color">
+            Click Me to Change Color
+        </button>
+    </div>
+
+    <hr class="my-5" />
+
+    <!-- Demo 3: Edit In Place -->
+    <h2>Demo 3: Incremental Updates with Gluer.update()</h2>
+    <p><strong>Features:</strong> In-place editing, Gluer.update() for partial updates, bone navigation</p>
+
+    <div data-bone="editableSection">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="editableList">
+                <tr data-id="10" data-name="David Chen" data-role="Architect" data-is-active="true">
+                    <td><glue field="Id">10</glue></td>
+                    <td class="fw-bold"><glue field="Name">David Chen</glue></td>
+                    <td><glue field="Role">Architect</glue></td>
+                    <td>
+                        <span>
+                            <glue field="IsActive"
+                                  parent-true-class="badge bg-success"
+                                  parent-false-class="badge bg-secondary"
+                                  parent-true-text="Active"
+                                  parent-false-text="Inactive">Active</glue>
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" data-bone="toggleStatus">Toggle Status</button>
+                        <button class="btn btn-sm btn-info ms-1" data-bone="updateName">Random Name</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="alert alert-info">
+        <strong>💡 How it works:</strong> Click "Toggle Status" to update just the status badge using
+        <code>Gluer.update(bone, data, ['IsActive'])</code>. Click "Random Name" to update just the name.
+        No full re-render needed!
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // ============================================================================
+        // Color Button Glueprint
+        // ============================================================================
+        Gluer.Glueprints['colorButton'] = {
+            bone: 'colorButton',
+            delegate: '#buttonContainer',
+            events: [
+                {
+                    event: 'click',
+                    selector: '.btn-change-color',
+                    handler: (e, bone, data) => {
+                        const button = e.target;
+
+                        // Toggle between different Bootstrap color classes
+                        if (button.classList.contains('btn-primary')) {
+                            button.classList.remove('btn-primary');
+                            button.classList.add('btn-success');
+                        } else if (button.classList.contains('btn-success')) {
+                            button.classList.remove('btn-success');
+                            button.classList.add('btn-warning');
+                        } else if (button.classList.contains('btn-warning')) {
+                            button.classList.remove('btn-warning');
+                            button.classList.add('btn-danger');
+                        } else if (button.classList.contains('btn-danger')) {
+                            button.classList.remove('btn-danger');
+                            button.classList.add('btn-info');
+                        } else {
+                            button.classList.remove('btn-info');
+                            button.classList.add('btn-primary');
+                        }
+
+                        console.log('Button clicked! Color changed via Glueprint handler.');
+                        console.log('Bone:', bone);
+                        console.log('Data:', data);
+                    }
+                }
+            ]
+        };
+
+        // ============================================================================
+        // DEMO 3: Editable List with Gluer.update()
+        // ============================================================================
+        Gluer.Glueprints['editableSection'] = {
+            bone: 'editableSection',
+            delegate: 'body',
+            events: [
+                {
+                    event: 'click',
+                    selector: '[data-bone="toggleStatus"]',
+                    handler: (e, bone, data) => {
+                        // Find the TR that contains the button
+                        const row = e.target.closest('tr');
+                        if (!row) return;
+
+                        // Parse boolean from data attribute
+                        const currentStatus = row.dataset.isActive === 'true';
+                        const newStatus = !currentStatus;
+
+                        // Update ONLY the status field using Gluer.update()
+                        Gluer.update(row, { IsActive: newStatus }, ['IsActive']);
+
+                        // Update data attribute
+                        row.dataset.isActive = newStatus.toString();
+
+                        Toast.create(`Status toggled to ${newStatus ? 'Active' : 'Inactive'}`, Toast.Type.SUCCESS, 2000, true);
+                    }
+                },
+                {
+                    event: 'click',
+                    selector: '[data-bone="updateName"]',
+                    handler: (e, bone, data) => {
+                        // Find the TR that contains the button
+                        const row = e.target.closest('tr');
+                        if (!row) return;
+
+                        const randomNames = ['Alice Smith', 'Bob Johnson', 'Carol White', 'David Brown', 'Eve Wilson'];
+                        const randomName = randomNames[Math.floor(Math.random() * randomNames.length)];
+
+                        // Update ONLY the name field using Gluer.update()
+                        Gluer.update(row, { Name: randomName }, ['Name']);
+
+                        // Update data attribute
+                        row.dataset.name = randomName;
+
+                        Toast.create(`Name updated to ${randomName}`, Toast.Type.SUCCESS, 2000, true);
+                    }
+                }
+            ]
+        };
+
+        console.log('Glueprints assigned:', Object.keys(Gluer.Glueprints));
+        console.log('colorButton bone:', document.querySelector('[data-bone="colorButton"]'));
+        console.log('editableSection bone:', document.querySelector('[data-bone="editableSection"]'));
+        console.log('toggleStatus button:', document.querySelector('[data-bone="toggleStatus"]'));
+        console.log('updateName button:', document.querySelector('[data-bone="updateName"]'));
+        console.log('TR in editableList:', document.getElementById('editableList')?.querySelector('tr'));
+
+        // Manually wire all glueprints after registration
+        // (The auto-wiring in glue.js may have already run before these were registered)
+        Gluer.wireAllExisting();
+
+        console.log('wireAllExisting() called');
+    </script>
+}

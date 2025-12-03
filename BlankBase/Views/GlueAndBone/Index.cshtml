@@ -1,0 +1,481 @@
+@model dynamic[]
+@using BlankBase.Controllers
+@using BlankBase.Helpers
+
+@{
+    ViewData["Title"] = "Glue & Bone Demo";
+}
+
+<div class="container mt-4">
+    <h1>Glue & Bone System Demo</h1>
+    <p class="text-muted">
+        Comprehensive demonstration of <code>&lt;bone&gt;</code> navigation, <code>&lt;glue&gt;</code> data binding,
+        and <strong>Glueprints</strong> declarative event wiring.
+    </p>
+
+    <hr class="my-4" />
+
+    <!-- Demo Section 1: Server-Rendered List with Delete -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">📋 Demo 1: Server-Rendered List with Glueprints</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>Features:</strong> Server-rendered content, data attributes, automatic event wiring on page load, self-delete</p>
+
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="serverRenderedList">
+                    @foreach (var item in Model)
+                    {
+                        <!-- Server-rendered bone with data attributes for handlers -->
+                        <bone name="teamMember"
+                              data-id="@item.Id"
+                              data-name="@item.Name"
+                              data-role="@item.Role"
+                              data-is-active="@item.IsActive.ToString().ToLower()">
+                            <tr>
+                                <bone name="idCell">
+                                    <td>@item.Id</td>
+                                </bone>
+                                <bone name="nameCell">
+                                    <td class="fw-bold">@item.Name</td>
+                                </bone>
+                                <bone name="roleCell">
+                                    <td>@item.Role</td>
+                                </bone>
+                                <bone name="statusCell">
+                                    <td>
+                                        @if (item.IsActive)
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        }
+                                    </td>
+                                </bone>
+                                <bone name="actionsCell">
+                                    <td>
+                                        <button class="btn btn-sm btn-primary btn-edit me-1">Edit</button>
+                                        <button class="btn btn-sm btn-danger btn-delete">Delete</button>
+                                    </td>
+                                </bone>
+                            </tr>
+                        </bone>
+                    }
+                </tbody>
+            </table>
+
+            <div class="alert alert-info mb-0">
+                <strong>💡 How it works:</strong> Items rendered by server with <code>data-*</code> attributes.
+                Glueprints automatically wire event handlers on page load. Try hovering and clicking buttons!
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo Section 2: Client-Side Add New Item -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">➕ Demo 2: Client-Side Rendering with Gluer.render()</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>Features:</strong> Client-side rendering, Gluer.render(), automatic event wiring during render</p>
+
+            <bone name="addItemForm">
+                <div class="row g-3 mb-3">
+                    <bone name="nameInput">
+                        <div class="col-md-4">
+                            <label class="form-label">Name</label>
+                            <input type="text" class="form-control" placeholder="Enter name">
+                        </div>
+                    </bone>
+                    <bone name="roleInput">
+                        <div class="col-md-4">
+                            <label class="form-label">Role</label>
+                            <input type="text" class="form-control" placeholder="Enter role">
+                        </div>
+                    </bone>
+                    <bone name="submitButton">
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <button class="btn btn-success w-100 btn-add-item">Add Team Member</button>
+                        </div>
+                    </bone>
+                </div>
+            </bone>
+
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="clientRenderedList">
+                    <!-- Items will be added here via Gluer.render() -->
+                </tbody>
+            </table>
+
+            <!-- Template for client-side rendering -->
+            <template id="teamMemberTemplate">
+                <bone name="teamMember">
+                    <tr>
+                        <bone name="idCell">
+                            <td><glue field="Id"></glue></td>
+                        </bone>
+                        <bone name="nameCell">
+                            <td class="fw-bold"><glue field="Name"></glue></td>
+                        </bone>
+                        <bone name="roleCell">
+                            <td><glue field="Role"></glue></td>
+                        </bone>
+                        <bone name="statusCell">
+                            <td>
+                                <span>
+                                    <glue field="IsActive"
+                                          parent-true-class="badge bg-success"
+                                          parent-false-class="badge bg-secondary"
+                                          parent-true-text="Active"
+                                          parent-false-text="Inactive"></glue>
+                                </span>
+                            </td>
+                        </bone>
+                        <bone name="actionsCell">
+                            <td>
+                                <button class="btn btn-sm btn-primary btn-edit me-1">Edit</button>
+                                <button class="btn btn-sm btn-danger btn-delete">Delete</button>
+                            </td>
+                        </bone>
+                    </tr>
+                </bone>
+            </template>
+
+            <div class="alert alert-info mb-0">
+                <strong>💡 How it works:</strong> Fill in form and click "Add Team Member".
+                Uses <code>Gluer.render()</code> to clone template, populate with <code>&lt;glue&gt;</code>,
+                and wire events automatically. Same glueprint handles both server and client-rendered items!
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo Section 3: Edit In Place -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">✏️ Demo 3: Incremental Updates with Gluer.update()</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>Features:</strong> In-place editing, Gluer.update() for partial updates, bone navigation</p>
+
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="editableList">
+                    <bone name="teamMember" data-id="10" data-name="David Chen" data-role="Architect" data-is-active="true">
+                        <tr>
+                            <bone name="idCell"><td><glue field="Id">10</glue></td></bone>
+                            <bone name="nameCell"><td class="fw-bold"><glue field="Name">David Chen</glue></td></bone>
+                            <bone name="roleCell"><td><glue field="Role">Architect</glue></td></bone>
+                            <bone name="statusCell">
+                                <td>
+                                    <span>
+                                        <glue field="IsActive"
+                                              parent-true-class="badge bg-success"
+                                              parent-false-class="badge bg-secondary"
+                                              parent-true-text="Active"
+                                              parent-false-text="Inactive">Active</glue>
+                                    </span>
+                                </td>
+                            </bone>
+                            <bone name="actionsCell">
+                                <td>
+                                    <button class="btn btn-sm btn-warning btn-toggle-status">Toggle Status</button>
+                                    <button class="btn btn-sm btn-info btn-update-name ms-1">Random Name</button>
+                                </td>
+                            </bone>
+                        </tr>
+                    </bone>
+                </tbody>
+            </table>
+
+            <!-- Template for editable list -->
+            <template id="editableTemplate">
+                <bone name="teamMember">
+                    <tr>
+                        <bone name="idCell"><td><glue field="Id"></glue></td></bone>
+                        <bone name="nameCell"><td class="fw-bold"><glue field="Name"></glue></td></bone>
+                        <bone name="roleCell"><td><glue field="Role"></glue></td></bone>
+                        <bone name="statusCell">
+                            <td>
+                                <span>
+                                    <glue field="IsActive"
+                                          parent-true-class="badge bg-success"
+                                          parent-false-class="badge bg-secondary"
+                                          parent-true-text="Active"
+                                          parent-false-text="Inactive"></glue>
+                                </span>
+                            </td>
+                        </bone>
+                        <bone name="actionsCell">
+                            <td>
+                                <button class="btn btn-sm btn-warning btn-toggle-status">Toggle Status</button>
+                                <button class="btn btn-sm btn-info btn-update-name ms-1">Random Name</button>
+                            </td>
+                        </bone>
+                    </tr>
+                </bone>
+            </template>
+
+            <div class="alert alert-info mb-0">
+                <strong>💡 How it works:</strong> Click "Toggle Status" to update just the status badge using
+                <code>Gluer.update(bone, data, ['IsActive'])</code>. Click "Random Name" to update just the name.
+                No full re-render needed!
+            </div>
+        </div>
+    </div>
+
+    <!-- Back to Home -->
+    <a href="@Url.Action(nameof(HomeController.Index), Name<HomeController>.Value)" class="btn btn-outline-secondary">
+        ← Back to Home
+    </a>
+</div>
+
+@section Scripts {
+    <script>
+        // ============================================================================
+        // DEMO 1: Server-Rendered List Glueprint
+        // ============================================================================
+        // This glueprint handles server-rendered items in #serverRenderedList
+        Gluer.registerGlueprint('teamMemberServerRendered', {
+            bone: 'teamMember',
+            delegate: '#serverRenderedList',
+            events: [
+                {
+                    event: 'click',
+                    selector: '.btn-delete',
+                    handler: async (e, bone, data) => {
+                        if (!confirm(`Delete ${data.name}?`)) return;
+
+                        try {
+                            const response = await fetch('@Url.Action("Delete", "GlueAndBone")?id=' + data.id, {
+                                method: 'POST',
+                                headers: {
+                                    'RequestVerificationToken': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
+                                }
+                            });
+
+                            const result = await response.json();
+
+                            if (result.success) {
+                                // Remove the bone from DOM
+                                bone.remove();
+                                Toast.create(result.message, Toast.Type.SUCCESS, 3000, true);
+                            } else {
+                                Toast.create('Delete failed!', Toast.Type.ERROR, 3000, true);
+                            }
+                        } catch (error) {
+                            Toast.create('Network error: ' + error.message, Toast.Type.ERROR, 3000, true);
+                        }
+                    }
+                },
+                {
+                    event: 'click',
+                    selector: '.btn-edit',
+                    handler: (e, bone, data) => {
+                        Toast.create(`Editing ${data.name} (ID: ${data.id})`, Toast.Type.SUCCESS, 2000, true);
+
+                        // Example: Navigate within bone using fluent API
+                        const nameCell = bone.getBone('nameCell');
+                        const roleBone = bone.getBone('roleCell');
+
+                        console.log('Name cell:', nameCell?.get('td')?.textContent);
+                        console.log('Role cell:', roleBone?.get('td')?.textContent);
+                    }
+                },
+                {
+                    event: 'mouseenter',
+                    selector: 'tr',
+                    handler: (e, bone, data) => {
+                        e.currentTarget.style.backgroundColor = '#e3f2fd';
+                    }
+                },
+                {
+                    event: 'mouseleave',
+                    selector: 'tr',
+                    handler: (e, bone, data) => {
+                        e.currentTarget.style.backgroundColor = '';
+                    }
+                }
+            ]
+        });
+
+        // ============================================================================
+        // DEMO 2: Client-Rendered List Glueprint
+        // ============================================================================
+        // This glueprint handles client-rendered items in #clientRenderedList
+        Gluer.registerGlueprint('teamMemberClientRendered', {
+            bone: 'teamMember',
+            delegate: '#clientRenderedList',
+            events: [
+                {
+                    event: 'click',
+                    selector: '.btn-delete',
+                    handler: (e, bone, data) => {
+                        if (!confirm(`Delete ${data.Name}?`)) return;
+
+                        // For demo, just remove from DOM
+                        bone.remove();
+                        Toast.create(`${data.Name} removed!`, Toast.Type.SUCCESS, 2000, true);
+                    }
+                },
+                {
+                    event: 'click',
+                    selector: '.btn-edit',
+                    handler: (e, bone, data) => {
+                        Toast.create(`Editing ${data.Name} (ID: ${data.Id})`, Toast.Type.SUCCESS, 2000, true);
+                    }
+                },
+                {
+                    event: 'mouseenter',
+                    selector: 'tr',
+                    handler: (e, bone, data) => {
+                        e.currentTarget.style.backgroundColor = '#e8f5e9';
+                    }
+                },
+                {
+                    event: 'mouseleave',
+                    selector: 'tr',
+                    handler: (e, bone, data) => {
+                        e.currentTarget.style.backgroundColor = '';
+                    }
+                }
+            ]
+        });
+
+        // Add item form handler
+        Gluer.registerGlueprint('addItemForm', {
+            bone: 'addItemForm',
+            delegate: 'body', // Parent of addItemForm
+            events: [
+                {
+                    event: 'click',
+                    selector: '.btn-add-item',
+                    handler: (e, bone, data) => {
+                        // Navigate to input bones using fluent API
+                        const nameInput = bone.getBone('nameInput').get('input');
+                        const roleInput = bone.getBone('roleInput').get('input');
+
+                        const name = nameInput.value.trim();
+                        const role = roleInput.value.trim();
+
+                        if (!name || !role) {
+                            Toast.create('Please fill in all fields', Toast.Type.WARNING, 2000, true);
+                            return;
+                        }
+
+                        // Get current items to determine next ID
+                        const existingItems = Dom.getAllBones(Dom.get('#clientRenderedList'), 'teamMember');
+                        const nextId = existingItems.length + 100;
+
+                        // Create new item
+                        const newItem = {
+                            Id: nextId,
+                            Name: name,
+                            Role: role,
+                            IsActive: true
+                        };
+
+                        // Render using Gluer - handlers automatically wired!
+                        const container = Dom.get('#clientRenderedList');
+                        const template = Dom.get('#teamMemberTemplate');
+                        const row = template.content.cloneNode(true);
+
+                        Gluer.populate(row, newItem);
+
+                        // Store data on bone
+                        const bones = row.querySelectorAll('bone[name]');
+                        bones.forEach(b => b.__glueData = newItem);
+
+                        container.appendChild(row);
+
+                        // Clear inputs
+                        nameInput.value = '';
+                        roleInput.value = '';
+
+                        Toast.create(`${name} added successfully!`, Toast.Type.SUCCESS, 2000, true);
+                    }
+                }
+            ]
+        });
+
+        // ============================================================================
+        // DEMO 3: Editable List with Gluer.update()
+        // ============================================================================
+        Gluer.registerGlueprint('teamMemberEditable', {
+            bone: 'teamMember',
+            delegate: '#editableList',
+            events: [
+                {
+                    event: 'click',
+                    selector: '.btn-toggle-status',
+                    handler: (e, bone, data) => {
+                        // Parse boolean from string (data attributes are strings)
+                        const currentStatus = data.isActive === 'true';
+                        const newStatus = !currentStatus;
+
+                        // Update ONLY the status field using Gluer.update()
+                        Gluer.update(bone, { IsActive: newStatus }, ['IsActive']);
+
+                        // Update stored data
+                        bone.__glueData.isActive = newStatus.toString();
+
+                        Toast.create(`Status toggled to ${newStatus ? 'Active' : 'Inactive'}`, Toast.Type.SUCCESS, 2000, true);
+                    }
+                },
+                {
+                    event: 'click',
+                    selector: '.btn-update-name',
+                    handler: (e, bone, data) => {
+                        const randomNames = ['Alice Smith', 'Bob Johnson', 'Carol White', 'David Brown', 'Eve Wilson'];
+                        const randomName = randomNames[Math.floor(Math.random() * randomNames.length)];
+
+                        // Update ONLY the name field using Gluer.update()
+                        Gluer.update(bone, { Name: randomName }, ['Name']);
+
+                        // Update stored data
+                        bone.__glueData.name = randomName;
+
+                        Toast.create(`Name updated to ${randomName}`, Toast.Type.SUCCESS, 2000, true);
+                    }
+                }
+            ]
+        });
+
+        // Manually wire all glueprints after registration
+        // (The auto-wiring in glue.js may have already run before these were registered)
+        console.log('Glueprints:', Object.keys(Gluer.Glueprints));
+        console.log('editableList container:', document.getElementById('editableList'));
+        console.log('All bones in editableList:', document.getElementById('editableList').querySelectorAll('bone[name="teamMember"]'));
+        console.log('Delegated listeners:', Gluer._Gluer__delegatedListeners || 'private field');
+        Gluer.wireAllExisting();
+    </script>
+}
