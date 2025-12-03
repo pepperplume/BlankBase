@@ -203,7 +203,7 @@ class Toast {
 
     /**
      * Create toast DOM element (private)
-     * Generates a Bootstrap toast element with the appropriate styling and content.
+     * Generates a Bootstrap toast element using Gluer template system.
      *
      * @private
      * @param {string} id - Unique ID for the toast element
@@ -215,23 +215,21 @@ class Toast {
         // Get configuration for the toast type (case-insensitive, default to success)
         const config = Toast.#CONFIG[type.toLowerCase()] || Toast.#CONFIG[Toast.Type.SUCCESS];
 
-        // Create toast HTML
-        const toastDiv = document.createElement('div');
-        toastDiv.id = id;
-        toastDiv.className = 'toast';
-        toastDiv.setAttribute('role', 'alert');
-        toastDiv.setAttribute('aria-live', 'assertive');
-        toastDiv.setAttribute('aria-atomic', 'true');
+        // Prepare data for template
+        const data = {
+            HeaderClass: `toast-header ${config.bgClass}`,
+            Icon: config.icon,
+            Title: config.title,
+            MessageText: message,
+            CloseButtonClass: type.toLowerCase() === Toast.Type.WARNING ? 'btn-close' : 'btn-close btn-close-white'
+        };
 
-        toastDiv.innerHTML = `
-            <div class="toast-header ${config.bgClass}">
-                <strong class="me-auto">${config.icon} ${config.title}</strong>
-                <button type="button" class="btn-close ${type.toLowerCase() === Toast.Type.WARNING ? '' : 'btn-close-white'}" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-            <div class="toast-body">
-                ${message}
-            </div>
-        `;
+        // Create element from template using Gluer
+        const fragment = Gluer.createFromTemplate('toastTemplate', data);
+        const toastDiv = fragment.firstElementChild;
+
+        // Set ID on the element
+        toastDiv.id = id;
 
         return toastDiv;
     }

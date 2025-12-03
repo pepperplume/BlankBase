@@ -10,3 +10,16 @@
      data-initial-toasts='@Html.Raw(JsonSerializer.Serialize(toasts, TempDataExtensions.JsonOptions))'>
     <!-- Toasts will be dynamically inserted here -->
 </div>
+
+@* Toast Template - Single source of truth for toast structure *@
+<template id="toastTemplate">
+    <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div data-glue-attrs="class:HeaderClass">
+            <strong class="me-auto">
+                <span data-glue="Icon"></span> <span data-glue="Title"></span>
+            </strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close" data-glue-attrs="class:CloseButtonClass"></button>
+        </div>
+        <div class="toast-body" data-glue="MessageText"></div>
+    </div>
+</template>

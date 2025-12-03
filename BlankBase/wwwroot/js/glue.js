@@ -69,6 +69,31 @@ class Gluer {
     }
 
     /**
+     * Create a single element from template without appending
+     * Useful for creating elements that need custom handling (e.g., toasts)
+     * @param {string} templateId - ID of template element
+     * @param {Object} data - Data object with values
+     * @returns {DocumentFragment} Populated document fragment (use .firstElementChild to get the element)
+     */
+    static createFromTemplate(templateId, data) {
+        const template = document.getElementById(templateId);
+
+        if (!template) {
+            console.error(`Template not found: #${templateId}`);
+            return null;
+        }
+
+        // Clone template
+        const clone = template.content.cloneNode(true);
+
+        // Find all elements with data-glue or data-glue-attrs
+        const elements = clone.querySelectorAll('[data-glue], [data-glue-attrs]');
+        elements.forEach(element => this.#populate(element, data));
+
+        return clone;
+    }
+
+    /**
      * Populate a single element with data
      * @param {Element} element - DOM element to populate
      * @param {Object} data - Data object with values

@@ -221,8 +221,8 @@ builder.Services.Configure<ToastDefaultOptions>(options => { /* ... */ });
 - **Services**: IToastService (TempData methods + JSON methods), ToastService
 - **Models**: ToastNotification, ToastType enum, ToastDefaultOptions
 - **Extensions**: TempDataExtensions (AddToast, GetToasts, JsonOptions)
-- **JavaScript**: wwwroot/js/toast.js (Toast class with `#` private members)
-- **Views**: _ToastContainer.cshtml (auto-initialization from TempData)
+- **JavaScript**: wwwroot/js/toast.js (Toast class with `#` private members, uses Gluer templates)
+- **Views**: _ToastContainer.cshtml (toast container + template, auto-initialization from TempData)
 
 **Demo Controllers/Views:** ToastController, Toast/Index, Toast/FormExample
 
@@ -452,9 +452,10 @@ fetch(url, {...}).then(r => r.json()).then(data => Toast.showMessages(data));
 - `#CONTAINER_ID` - Toast container element ID
 - `#idCounter` - Counter for unique toast IDs
 - `#CONFIG` - Toast type configuration (bg classes, icons, titles)
-- `#createElement(id, message, type)` - Build toast DOM element
+- `#createElement(id, message, type)` - Build toast DOM element using Gluer template
 
 **Key features:**
+- Uses Gluer template system (`toastTemplate` in _ToastContainer.cshtml) for consistent structure
 - Handles both PascalCase (C# JSON) and camelCase (JavaScript)
 - Auto-initialization from TempData via `data-initial-toasts` attribute
 - Automatic cleanup after toast hidden
@@ -661,7 +662,8 @@ Gluer.glueUp('recordRowTemplate', 'recordsTableBody', items);
 **Public API:**
 - `Gluer.Glueprints` - Object mapping `data-bone` identifiers to event handlers
 - `Gluer.init()` - Initialize global event delegation (called automatically in _Layout.cshtml)
-- `Gluer.glueUp(templateId, containerId, items)` - Render items from template
+- `Gluer.glueUp(templateId, containerId, items)` - Render array of items from template and append to container
+- `Gluer.createFromTemplate(templateId, data)` - Create single element from template (returns DocumentFragment, use `.firstElementChild` to get element)
 
 **Glueprints structure:**
 ```javascript
