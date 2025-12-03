@@ -45,7 +45,6 @@ Application URLs:
   - dom.js (Dom class - DOM manipulation utilities)
   - pagination.js (AjaxPagination class - AJAX pagination with sorting)
   - glue.js (Gluer class - template rendering with event delegation)
-  - template-renderer.js (TemplateRenderer class - DEPRECATED, use Gluer instead)
 - **wwwroot/**: Static files (css/, lib/)
 
 ## Type-Safe Routing Pattern
@@ -255,7 +254,7 @@ Generic Repository + Unit of Work pattern with server-side pagination and type-s
 - URL updated via History API (bookmarkable, refresh, back/forward support)
 - Fetch API for data loading
 - Uses AjaxPagination class for pagination controls
-- Uses TemplateRenderer class for table rendering
+- Uses Gluer class for template rendering with automatic event delegation
 - Uses Dom class for show/hide state management
 
 ### Repository Implementation Pattern
@@ -426,7 +425,7 @@ Modern JavaScript utilities using ES2022+ class patterns with true privacy (`#` 
 - **No `_` convention** - Modern JS uses `#` for actual privacy, not underscore naming
 - **Bootstrap integration** - Leverage existing Bootstrap classes (`d-none`, `fade`, etc.)
 - **Accessibility built-in** - `aria-hidden` attributes automatically managed
-- **Consistent naming** - `Toast`, `Dom`, `TemplateRenderer`, `AjaxPagination` (not `*Utils`)
+- **Consistent naming** - `Toast`, `Dom`, `Gluer`, `AjaxPagination` (not `*Utils`)
 
 ### Toast Class
 
@@ -594,7 +593,7 @@ pagination.render(data.pagination, currentSortBy, currentSortDirection);
 
 ### Gluer Class
 
-Modern template rendering utility with automatic event delegation using `data-bone` pattern. Replaces TemplateRenderer with cleaner separation of structure and behavior.
+Modern template rendering utility with automatic event delegation using `data-bone` pattern for clean separation of structure and behavior.
 
 **File:** `wwwroot/js/glue.js`
 
@@ -696,76 +695,6 @@ Gluer.init() is automatically called in `_Layout.cshtml` after the Scripts secti
 3. All elements with matching `data-bone` attributes are automatically wired
 4. Call `Gluer.glueUp()` to render dynamic content → new elements automatically work
 
-**Comparison to TemplateRenderer:**
-- Simpler API: `data-glue` vs `data-field`, `data-glue-attrs` vs complex boolean mapping
-- Built-in event system: Glueprints vs manual event wiring
-- Cleaner separation: `data-bone` for behavior, classes for styling
-- No formatting (keep it simple, format in C# before sending)
-
-### TemplateRenderer Class (DEPRECATED - Use Gluer Instead)
-
-**⚠️ DEPRECATED:** This class is being replaced by the Gluer class for new development. Use Gluer for cleaner API and built-in event delegation.
-
-Generic utility for populating HTML `<template>` elements with data using data attributes. Enables defining table structure in Razor/HTML instead of JavaScript.
-
-**File:** `wwwroot/js/template-renderer.js`
-
-**Usage:**
-```cshtml
-<!-- Define structure in HTML template -->
-<template id="recordRowTemplate">
-    <tr>
-        <td data-field="ExampleRecordID"></td>
-        <td data-field="Name"></td>
-        <td data-field="Age"></td>
-        <td data-field="Birthdate" data-format="date"></td>
-        <td>
-            <span data-field="IsActive"
-                  data-true-class="badge bg-success"
-                  data-false-class="badge bg-secondary"
-                  data-true-text="Active"
-                  data-false-text="Inactive"></span>
-        </td>
-    </tr>
-</template>
-
-<script>
-// JavaScript just populates from data
-TemplateRenderer.render('recordRowTemplate', 'recordsTableBody', items);
-</script>
-```
-
-**Public methods:**
-- `TemplateRenderer.populate(templateNode, data)` - Populate cloned template with data
-- `TemplateRenderer.render(templateId, containerId, items, beforeAppend)` - Render list of items
-
-**Data attribute conventions:**
-- `data-field="PropertyName"` - Populate from `data.PropertyName`
-- `data-format="date"` - Format as localized date
-- `data-format="datetime"` - Format as localized datetime
-- `data-format="html"` - Insert as raw HTML (use with caution!)
-- Boolean mapping:
-  - `data-true-class` / `data-false-class` - Apply class based on boolean
-  - `data-true-text` / `data-false-text` - Set text based on boolean
-
-**Private methods:**
-- `#handleBooleanField(element, value)` - Handle boolean to badge/class mapping
-- `#formatDate(value)` - Format dates
-- `#formatDateTime(value)` - Format datetimes
-
-**Key features:**
-- HTML structure lives in Razor (edit styling without touching JS)
-- Automatic HTML escaping by default (security)
-- Boolean to badge/class mapping (Bootstrap badges)
-- Supports multiple space-separated classes
-- Reusable across any template + data combination
-
-**Benefits:**
-- ✅ Change table styling in HTML/CSS (no JavaScript edits)
-- ✅ Reorder columns in Razor (structure where it belongs)
-- ✅ Add/remove fields easily (just update template)
-- ⚠️ Only touch JavaScript when structure fundamentally changes
-
 **Example:** See `ExampleRecord/AjaxExample.cshtml` for complete implementation
 
 ### JavaScript Class Pattern Notes
@@ -786,6 +715,6 @@ TemplateRenderer.render('recordRowTemplate', 'recordsTableBody', items);
 - Not supported in IE11 (but project targets modern browsers)
 
 **Naming convention:**
-- Use clear names: `Toast`, `Dom`, `TemplateRenderer` (not `ToastUtils`)
+- Use clear names: `Toast`, `Dom`, `Gluer` (not `ToastUtils`)
 - Match C# naming: `StringHelper`, `MathUtils` pattern
 - Avoid cryptic symbols: No `$()` (confusing for beginners)

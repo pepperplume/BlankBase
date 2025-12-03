@@ -57,16 +57,12 @@
         <!-- Row Template (modify structure here - no JavaScript needed!) -->
         <template id="recordRowTemplate">
             <tr>
-                <td data-field="ExampleRecordID"></td>
-                <td data-field="Name"></td>
-                <td data-field="Age"></td>
-                <td data-field="Birthdate" data-format="date"></td>
+                <td data-glue="ExampleRecordID"></td>
+                <td data-glue="Name"></td>
+                <td data-glue="Age"></td>
+                <td data-glue="BirthdateFormatted"></td>
                 <td>
-                    <span data-field="IsActive"
-                          data-true-class="badge bg-success"
-                          data-false-class="badge bg-secondary"
-                          data-true-text="Active"
-                          data-false-text="Inactive"></span>
+                    <span data-glue="StatusText" data-glue-attrs="class:StatusClass"></span>
                 </td>
             </tr>
         </template>
@@ -100,7 +96,6 @@
 @section Scripts {
     <script src="~/js/dom.js"></script>
     <script src="~/js/pagination.js"></script>
-    <script src="~/js/template-renderer.js"></script>
     <script>
         // Sort direction constants (rendered from C# constants)
         const ASC = '@SortDirections.Asc';
@@ -182,7 +177,7 @@
 
         // Render table rows using template (structure defined in HTML template above)
         function renderTable(items) {
-            TemplateRenderer.render('recordRowTemplate', 'recordsTableBody', items);
+            Gluer.glueUp('recordRowTemplate', 'recordsTableBody', items);
         }
 
         // Initialize and load first page

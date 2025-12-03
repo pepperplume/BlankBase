@@ -73,9 +73,20 @@ public class ExampleRecordController : Controller
         var pagedResult = await _unitOfWork.ExampleRecordRepository
             .GetAllExampleRecordsPagedAsync(page, pageSize, sortBy, sortDirection);
 
+        // Format data for Gluer (server-side formatting instead of client-side)
+        var formattedItems = pagedResult.Items.Select(record => new
+        {
+            record.ExampleRecordID,
+            record.Name,
+            record.Age,
+            BirthdateFormatted = record.Birthdate?.ToString("d") ?? "", // Short date format
+            StatusText = record.IsActive ? "Active" : "Inactive",
+            StatusClass = record.IsActive ? "badge bg-success" : "badge bg-secondary"
+        });
+
         return Json(new
         {
-            items = pagedResult.Items,
+            items = formattedItems,
             pagination = new
             {
                 pageNumber = pagedResult.PageNumber,
