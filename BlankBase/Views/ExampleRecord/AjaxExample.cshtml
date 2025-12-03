@@ -10,7 +10,7 @@
     <p class="text-muted">Modern AJAX pagination with sortable columns and URL state management. Supports bookmarking, back/forward buttons, and page refresh. (Click column headers to sort)</p>
 
     <!-- Loading Spinner -->
-    <div id="loading" class="text-center my-5" style="display: none;">
+    <div id="loading" class="text-center my-5 d-none" >
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>
@@ -18,15 +18,15 @@
     </div>
 
     <!-- Error Message -->
-    <div id="error" class="alert alert-danger" style="display: none;"></div>
+    <div id="error" class="alert alert-danger d-none" ></div>
 
     <!-- No Records Message -->
-    <div id="noRecords" class="alert alert-info" style="display: none;">
+    <div id="noRecords" class="alert alert-info d-none" >
         No records found. Add some records to see pagination in action.
     </div>
 
     <!-- Records Table -->
-    <div id="tableContainer" style="display: none;">
+    <div id="tableContainer" class="d-none">
         <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead>
@@ -94,7 +94,6 @@
 </div>
 
 @section Scripts {
-    <script src="~/js/dom.js"></script>
     <script src="~/js/pagination.js"></script>
     <script>
         // Sort direction constants (rendered from C# constants)

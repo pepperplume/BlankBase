@@ -79,7 +79,7 @@ public class ExampleRecordController : Controller
             record.ExampleRecordID,
             record.Name,
             record.Age,
-            BirthdateFormatted = record.Birthdate?.ToString("d") ?? "", // Short date format
+            BirthdateFormatted = record.Birthdate.ToString("d"), // Short date format
             StatusText = record.IsActive ? "Active" : "Inactive",
             StatusClass = record.IsActive ? "badge bg-success" : "badge bg-secondary"
         });
