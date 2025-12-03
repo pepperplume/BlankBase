@@ -44,7 +44,8 @@ Application URLs:
   - toast.js (Toast class - notification system)
   - dom.js (Dom class - DOM manipulation utilities)
   - pagination.js (AjaxPagination class - AJAX pagination with sorting)
-  - template-renderer.js (TemplateRenderer class - HTML template population)
+  - glue.js (Gluer class - template rendering with event delegation)
+  - template-renderer.js (TemplateRenderer class - DEPRECATED, use Gluer instead)
 - **wwwroot/**: Static files (css/, lib/)
 
 ## Type-Safe Routing Pattern
@@ -99,6 +100,42 @@ Uses `PartialViews` static class to eliminate magic strings when referencing par
 - Consistent with `SortColumns` pattern
 
 **Configuration:** Available via `_ViewImports.cshtml` imports (`BlankBase.Helpers`).
+
+## Structural Element Identification Pattern
+
+Uses `data-bone` attributes to identify structural/behavioral elements, separating them from styling classes.
+
+**Philosophy:**
+- **CSS classes** = Styling only (Bootstrap, custom CSS)
+- **`data-bone`** = Structural identification for JavaScript behavior
+- **Benefits:** Refactor CSS without breaking JS, clear intent, no naming conflicts
+
+**Usage:**
+```html
+<!-- Structural identifier -->
+<button data-bone="delete-btn" class="btn btn-danger">Delete</button>
+
+<!-- Can change classes freely without breaking JS -->
+<button data-bone="delete-btn" class="btn btn-sm btn-outline-danger">Delete</button>
+```
+
+**Event Wiring:**
+```javascript
+Gluer.Glueprints = {
+    'delete-btn': {
+        event: 'click',
+        handler: (event) => {
+            const btn = event.target.closest('[data-bone="delete-btn"]');
+            const recordId = btn.dataset.recordId;
+            // Handle delete...
+        }
+    }
+};
+```
+
+**Naming Convention:** Kebab-case (`data-bone="pagination-controls"`)
+
+**Integration:** Used by Gluer class for automatic event delegation (see JavaScript Utility Classes section)
 
 ## Reusable Pagination Component
 
@@ -555,7 +592,119 @@ pagination.render(data.pagination, currentSortBy, currentSortDirection);
 
 **Example:** See `ExampleRecord/AjaxExample.cshtml` for complete implementation
 
-### TemplateRenderer Class
+### Gluer Class
+
+Modern template rendering utility with automatic event delegation using `data-bone` pattern. Replaces TemplateRenderer with cleaner separation of structure and behavior.
+
+**File:** `wwwroot/js/glue.js`
+
+**Core Concept:** "Glue" data to templates and automatically wire up events via "Glueprints" (blueprints for behavior).
+
+**Usage:**
+```javascript
+// Define events (Glueprints) - typically in page's Scripts section
+Gluer.Glueprints = {
+    'delete-btn': {
+        event: 'click',
+        handler: (event) => {
+            const btn = event.target.closest('[data-bone="delete-btn"]');
+            const recordId = btn.dataset.recordId;
+            fetch(`/api/delete/${recordId}`)
+                .then(() => btn.closest('tr').remove());
+        }
+    },
+    'edit-btn': {
+        event: 'click',
+        handler: (event) => {
+            const recordId = event.target.dataset.recordId;
+            window.location.href = `/edit/${recordId}`;
+        }
+    }
+};
+
+// Gluer.init() is called automatically in _Layout.cshtml after Scripts section
+
+// Render template with data
+Gluer.glueUp('recordRowTemplate', 'recordsTableBody', items);
+```
+
+**Template attributes:**
+```html
+<template id="recordRowTemplate">
+    <tr>
+        <!-- data-glue: Sets inner text/HTML -->
+        <td data-glue="Name"></td>
+        <td data-glue="Age"></td>
+        <td>
+            <!-- data-glue-attrs: Sets element attributes (attribute:field,attr2:field2) -->
+            <button data-bone="delete-btn"
+                    data-glue-attrs="data-record-id:ExampleRecordID">
+                Delete
+            </button>
+
+            <!-- Combine both: inner text AND attributes -->
+            <a data-bone="edit-link"
+               data-glue="Name"
+               data-glue-attrs="href:EditUrl,data-record-id:ExampleRecordID">
+            </a>
+        </td>
+    </tr>
+</template>
+```
+
+**Data attribute conventions:**
+- `data-glue="FieldName"` - Populate **inner text** from `data.FieldName`
+- `data-glue-attrs="attr:Field,attr2:Field2"` - Populate **element attributes** from data fields
+  - Single attribute: `data-glue-attrs="src:ImageUrl"`
+  - Multiple attributes: `data-glue-attrs="data-id:ID,data-name:Name,href:Url"`
+- `data-bone="identifier"` - Structural identifier for event wiring (see Glueprints)
+
+**Public API:**
+- `Gluer.Glueprints` - Object mapping `data-bone` identifiers to event handlers
+- `Gluer.init()` - Initialize global event delegation (called automatically in _Layout.cshtml)
+- `Gluer.glueUp(templateId, containerId, items)` - Render items from template
+
+**Glueprints structure:**
+```javascript
+Gluer.Glueprints = {
+    'bone-identifier': {
+        event: 'click',          // Event type: 'click', 'change', 'submit', etc.
+        handler: (event) => {}   // Event handler function
+    }
+};
+```
+
+**Key features:**
+- ✅ **Global event delegation** - One listener for all elements (existing + dynamically created)
+- ✅ **Automatic event wiring** - Define Glueprints once, works everywhere
+- ✅ **No manual addEventListener** - Framework handles it
+- ✅ **data-bone pattern** - Separates structure from styling
+- ✅ **Template-driven** - HTML structure in Razor, not JavaScript
+- ✅ **Context-aware handlers** - Access original data via data attributes
+
+**Event delegation benefits:**
+- Works for static HTML and dynamically created elements
+- Memory efficient (one listener per event type, not per element)
+- No need to re-wire events after DOM changes
+
+**Initialization:**
+Gluer.init() is automatically called in `_Layout.cshtml` after the Scripts section, ensuring all Glueprints defined in page-specific scripts are wired up.
+
+**Example workflow:**
+1. Page loads → Scripts section defines Glueprints
+2. `_Layout.cshtml` calls `Gluer.init()` → sets up global event delegation
+3. All elements with matching `data-bone` attributes are automatically wired
+4. Call `Gluer.glueUp()` to render dynamic content → new elements automatically work
+
+**Comparison to TemplateRenderer:**
+- Simpler API: `data-glue` vs `data-field`, `data-glue-attrs` vs complex boolean mapping
+- Built-in event system: Glueprints vs manual event wiring
+- Cleaner separation: `data-bone` for behavior, classes for styling
+- No formatting (keep it simple, format in C# before sending)
+
+### TemplateRenderer Class (DEPRECATED - Use Gluer Instead)
+
+**⚠️ DEPRECATED:** This class is being replaced by the Gluer class for new development. Use Gluer for cleaner API and built-in event delegation.
 
 Generic utility for populating HTML `<template>` elements with data using data attributes. Enables defining table structure in Razor/HTML instead of JavaScript.
 
