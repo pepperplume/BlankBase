@@ -1,0 +1,286 @@
+@{
+    ViewData["Title"] = "Button State Management Demo";
+}
+
+<div class="container mt-4">
+    <h1>Button State Management Demo</h1>
+    <p class="lead">Dom utility methods for managing button states during async operations</p>
+
+    <div class="alert alert-info">
+        <strong>How it works:</strong> The Dom class provides methods to disable/enable buttons and show loading states with spinners.
+        Custom loading text can be configured via the <code>data-loading-text</code> attribute.
+    </div>
+
+    <hr class="my-4">
+
+    <!-- Example 1: Basic Disable/Enable -->
+    <section class="mb-5">
+        <h3>1. Basic Disable/Enable</h3>
+        <p>Simple disable and enable without loading state.</p>
+
+        <div class="card">
+            <div class="card-body">
+                <button id="basicBtn" class="btn btn-primary me-2">Action Button</button>
+                <button class="btn btn-secondary me-2" onclick="Dom.disable('#basicBtn')">Disable</button>
+                <button class="btn btn-success me-2" onclick="Dom.enable('#basicBtn')">Enable</button>
+                <button class="btn btn-warning" onclick="Dom.toggleDisable('#basicBtn')">Toggle</button>
+            </div>
+            <div class="card-footer bg-light">
+                <small class="text-muted">Try the Disable, Enable, and Toggle buttons to control the "Action Button" state.</small>
+            </div>
+        </div>
+    </section>
+
+    <!-- Example 2: Default Loading Text -->
+    <section class="mb-5">
+        <h3>2. Loading State (Default Text)</h3>
+        <p>Shows spinner and "Loading..." text by default.</p>
+
+        <div class="card">
+            <div class="card-body">
+                <button id="defaultLoadingBtn" class="btn btn-primary" onclick="handleDefaultLoading()">
+                    Submit Form
+                </button>
+            </div>
+            <div class="card-footer bg-light">
+                <small class="text-muted">Click to see default "Loading..." text with spinner. Simulates 2 second operation.</small>
+            </div>
+        </div>
+    </section>
+
+    <!-- Example 3: Custom Loading Text -->
+    <section class="mb-5">
+        <h3>3. Custom Loading Text</h3>
+        <p>Use <code>data-loading-text</code> attribute to customize the loading message.</p>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex gap-2 flex-wrap">
+                    <button id="deleteBtn"
+                            class="btn btn-danger"
+                            data-loading-text="Deleting..."
+                            onclick="handleCustomLoading('#deleteBtn')">
+                        Delete Record
+                    </button>
+                    <button id="saveBtn"
+                            class="btn btn-success"
+                            data-loading-text="Saving..."
+                            onclick="handleCustomLoading('#saveBtn')">
+                        Save Changes
+                    </button>
+                    <button id="loginBtn"
+                            class="btn btn-info"
+                            data-loading-text="Logging in..."
+                            onclick="handleCustomLoading('#loginBtn')">
+                        Login
+                    </button>
+                    <button id="uploadBtn"
+                            class="btn btn-warning"
+                            data-loading-text="Uploading..."
+                            onclick="handleCustomLoading('#uploadBtn')">
+                        Upload File
+                    </button>
+                </div>
+            </div>
+            <div class="card-footer bg-light">
+                <small class="text-muted">Each button has a custom loading message defined in <code>data-loading-text</code> attribute.</small>
+            </div>
+        </div>
+    </section>
+
+    <!-- Example 4: Complete Async Pattern -->
+    <section class="mb-5">
+        <h3>4. Complete Async Pattern with Error Handling</h3>
+        <p>Real-world example showing proper async operation handling with success and error cases.</p>
+
+        <div class="card">
+            <div class="card-body">
+                <button id="asyncSuccessBtn"
+                        class="btn btn-primary me-2"
+                        data-loading-text="Processing..."
+                        onclick="handleAsyncSuccess()">
+                    Simulate Success
+                </button>
+                <button id="asyncErrorBtn"
+                        class="btn btn-danger"
+                        data-loading-text="Processing..."
+                        onclick="handleAsyncError()">
+                    Simulate Error
+                </button>
+            </div>
+            <div class="card-footer bg-light">
+                <small class="text-muted">Success restores button normally. Error shows toast and still restores button state.</small>
+            </div>
+        </div>
+    </section>
+
+    <hr class="my-4">
+
+    <!-- Implementation Notes -->
+    <section class="mb-5">
+        <h3>Implementation Notes</h3>
+
+        <div class="accordion" id="implementationAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#htmlCode">
+                        HTML Examples
+                    </button>
+                </h2>
+                <div id="htmlCode" class="accordion-collapse collapse show" data-bs-parent="#implementationAccordion">
+                    <div class="accordion-body">
+                        <pre><code>&lt;!-- Default loading text --&gt;
+&lt;button id="submitBtn" class="btn btn-primary"&gt;Submit&lt;/button&gt;
+
+&lt;!-- Custom loading text --&gt;
+&lt;button id="deleteBtn"
+        class="btn btn-danger"
+        data-loading-text="Deleting..."&gt;
+    Delete
+&lt;/button&gt;
+
+&lt;button id="saveBtn"
+        class="btn btn-success"
+        data-loading-text="Saving..."&gt;
+    Save Changes
+&lt;/button&gt;</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#jsCode">
+                        JavaScript Examples
+                    </button>
+                </h2>
+                <div id="jsCode" class="accordion-collapse collapse" data-bs-parent="#implementationAccordion">
+                    <div class="accordion-body">
+                        <pre><code>// Basic disable/enable
+Dom.disable('#submitBtn');
+Dom.enable('#submitBtn');
+Dom.toggleDisable('#submitBtn');
+
+// Complete async pattern
+async function handleSubmit() {
+    const btn = '#submitBtn';
+
+    // Start loading
+    Dom.disableShowLoading(btn);
+
+    try {
+        const response = await fetch('/api/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        Toast.showMessages(result);
+
+    } catch (error) {
+        Toast.create('Operation failed', Toast.Type.ERROR, 5000, true);
+
+    } finally {
+        // Always restore button state
+        Dom.enableHideLoading(btn);
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#features">
+                        Key Features
+                    </button>
+                </h2>
+                <div id="features" class="accordion-collapse collapse" data-bs-parent="#implementationAccordion">
+                    <div class="accordion-body">
+                        <ul>
+                            <li><strong>Content Preservation:</strong> Original button text is automatically saved and restored</li>
+                            <li><strong>Custom Loading Text:</strong> Use <code>data-loading-text</code> attribute for context-specific messages</li>
+                            <li><strong>Bootstrap Spinner:</strong> Integrated spinner component for visual feedback</li>
+                            <li><strong>Simple API:</strong> Just two methods: <code>disableShowLoading()</code> and <code>enableHideLoading()</code></li>
+                            <li><strong>Error Resilient:</strong> Use in try/catch/finally to ensure button is always restored</li>
+                            <li><strong>Basic Disable:</strong> Use <code>disable()</code>, <code>enable()</code>, <code>toggleDisable()</code> when you don't need loading state</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+@section Scripts {
+    <script src="~/js/dom.js"></script>
+    <script src="~/js/toast.js"></script>
+
+    <script>
+        const apiUrl = '@Url.Action(nameof(DisableController.SimulateOperation), Name<DisableController>.Value)';
+
+        // Example 2: Default loading text
+        async function handleDefaultLoading() {
+            const btn = '#defaultLoadingBtn';
+            Dom.disableShowLoading(btn);
+
+            try {
+                const response = await fetch(apiUrl, { method: 'POST' });
+                const data = await response.json();
+                Toast.showMessages(data);
+            } catch (error) {
+                Toast.create('Operation failed', Toast.Type.ERROR, 5000, true);
+            } finally {
+                Dom.enableHideLoading(btn);
+            }
+        }
+
+        // Example 3: Custom loading text
+        async function handleCustomLoading(selector) {
+            Dom.disableShowLoading(selector);
+
+            try {
+                const response = await fetch(apiUrl, { method: 'POST' });
+                const data = await response.json();
+                Toast.showMessages(data);
+            } catch (error) {
+                Toast.create('Operation failed', Toast.Type.ERROR, 5000, true);
+            } finally {
+                Dom.enableHideLoading(selector);
+            }
+        }
+
+        // Example 4: Success case
+        async function handleAsyncSuccess() {
+            const btn = '#asyncSuccessBtn';
+            Dom.disableShowLoading(btn);
+
+            try {
+                const response = await fetch(apiUrl, { method: 'POST' });
+                const data = await response.json();
+                Toast.showMessages(data);
+            } catch (error) {
+                Toast.create('Unexpected error', Toast.Type.ERROR, 5000, true);
+            } finally {
+                Dom.enableHideLoading(btn);
+            }
+        }
+
+        // Example 4: Error case (simulated)
+        async function handleAsyncError() {
+            const btn = '#asyncErrorBtn';
+            Dom.disableShowLoading(btn);
+
+            try {
+                // Simulate network error
+                await new Promise((_, reject) => setTimeout(() => reject(new Error('Simulated error')), 1500));
+            } catch (error) {
+                Toast.create('Operation failed: ' + error.message, Toast.Type.ERROR, 5000, true);
+            } finally {
+                // Button is still restored even on error
+                Dom.enableHideLoading(btn);
+            }
+        }
+    </script>
+}

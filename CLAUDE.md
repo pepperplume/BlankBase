@@ -45,6 +45,7 @@ Application URLs:
   - dom.js (Dom class - DOM manipulation utilities)
   - pagination.js (AjaxPagination class - AJAX pagination with sorting)
   - glue.js (Gluer class - template rendering with event delegation)
+  - confirm-delete.js (ConfirmDelete class - inline delete confirmations with popovers)
 - **wwwroot/**: Static files (css/, lib/)
 
 ## Type-Safe Routing Pattern
@@ -425,7 +426,7 @@ Modern JavaScript utilities using ES2022+ class patterns with true privacy (`#` 
 - **No `_` convention** - Modern JS uses `#` for actual privacy, not underscore naming
 - **Bootstrap integration** - Leverage existing Bootstrap classes (`d-none`, `fade`, etc.)
 - **Accessibility built-in** - `aria-hidden` attributes automatically managed
-- **Consistent naming** - `Toast`, `Dom`, `Gluer`, `AjaxPagination` (not `*Utils`)
+- **Consistent naming** - `Toast`, `Dom`, `Gluer`, `AjaxPagination`, `ConfirmDelete` (not `*Utils`)
 
 ### Toast Class
 
@@ -519,8 +520,16 @@ Dom.toggleClass('#menu', 'open');
 - `Dom.removeClass(selector, className)` - Remove class from element
 - `Dom.toggleClass(selector, className)` - Toggle class on element
 
+**Button state management:**
+- `Dom.disable(selector)` - Disable button or input element
+- `Dom.enable(selector)` - Enable button or input element
+- `Dom.toggleDisable(selector)` - Toggle disabled state
+- `Dom.disableShowLoading(selector)` - Disable button and show loading spinner (uses `data-loading-text` attribute or defaults to "Loading...")
+- `Dom.enableHideLoading(selector)` - Enable button and restore original content
+
 **Utility methods:**
 - `Dom.isVisible(selector)` - Check if element is visible
+- `Dom.whenLoaded(callback)` - Execute callback when DOM is ready (handles both pre-load and post-load scenarios)
 
 **Key features:**
 - Bootstrap `d-none` class instead of inline styles
@@ -528,6 +537,7 @@ Dom.toggleClass('#menu', 'open');
 - ID selector optimization (fast path for `#elementId`)
 - Accepts selector string or Element object
 - CSS transition support for animations
+- Loading state management with spinner integration
 
 ### AjaxPagination Class
 
@@ -699,6 +709,81 @@ Gluer.init() is automatically called in `_Layout.cshtml` after the Scripts secti
 
 **Example:** See `ExampleRecord/AjaxExample.cshtml` for complete implementation
 
+### ConfirmDelete Class
+
+Inline delete confirmation using Bootstrap popovers instead of modal dialogs. Provides "flip cover" pattern for delete confirmations with spatial proximity and context preservation for better UX.
+
+**File:** `wwwroot/js/confirm-delete.js`
+
+**Core Concept:** Show a popover confirmation next to the delete button instead of a modal dialog, maintaining visual context and reducing cognitive load.
+
+**Usage:**
+```html
+<!-- Basic delete -->
+<button class="btn btn-danger"
+        data-confirm-delete
+        data-confirm-url="/ExampleRecord/Delete/123">
+    Delete
+</button>
+
+<!-- With warning about side effects -->
+<button class="btn btn-danger"
+        data-confirm-delete
+        data-confirm-url="/ExampleRecord/Delete/123"
+        data-confirm-warning="This will also remove all associated codes">
+    Delete
+</button>
+
+<!-- With auto-remove table row (opt-in) -->
+<button class="btn btn-danger"
+        data-confirm-delete
+        data-confirm-url="/ExampleRecord/Delete/123"
+        data-confirm-remove-row>
+    Delete
+</button>
+```
+
+**Data attributes:**
+- `data-confirm-delete` - Enables delete confirmation (required)
+- `data-confirm-url` - URL to POST delete request to (required)
+- `data-confirm-warning` - Optional warning message about side effects
+- `data-confirm-remove-row` - Auto-remove table row on successful delete (opt-in)
+
+**Public API:**
+- `ConfirmDelete.initialize(button)` - Initialize confirmation handler on a delete button
+
+**Key features:**
+- ✅ **Inline confirmation** - Popover appears next to button, not modal overlay
+- ✅ **Auto-initialization** - All `[data-confirm-delete]` elements wired on page load
+- ✅ **Click-outside dismissal** - Popover closes when clicking outside
+- ✅ **Loading state** - Shows spinner during delete operation
+- ✅ **Toast integration** - Displays server response messages via Toast
+- ✅ **CSRF protection** - Includes anti-forgery token in requests
+- ✅ **Optional row removal** - Auto-removes table row on success (opt-in via `data-confirm-remove-row`)
+- ✅ **Warning messages** - Optional side-effect warnings via `data-confirm-warning`
+
+**Server-side requirements:**
+```csharp
+[HttpPost]
+public async Task<IActionResult> Delete(int id)
+{
+    // Perform delete
+    await _repository.DeleteAsync(id);
+
+    // Return JSON with toast message
+    var json = new { success = true };
+    var jsonNode = JsonSerializer.SerializeToNode(json);
+    jsonNode = _toastService.AddSuccessToJson(jsonNode!, "Record deleted successfully");
+    return Json(jsonNode, TempDataExtensions.JsonOptions);
+}
+```
+
+**Pattern benefits:**
+- Better UX than modal dialogs (spatial proximity, context preservation)
+- Declarative (no JavaScript needed in views)
+- Consistent delete confirmation across application
+- Reduces accidental deletions
+
 ### JavaScript Class Pattern Notes
 
 **Why classes over object literals?**
@@ -717,6 +802,6 @@ Gluer.init() is automatically called in `_Layout.cshtml` after the Scripts secti
 - Not supported in IE11 (but project targets modern browsers)
 
 **Naming convention:**
-- Use clear names: `Toast`, `Dom`, `Gluer` (not `ToastUtils`)
+- Use clear names: `Toast`, `Dom`, `Gluer`, `ConfirmDelete` (not `ToastUtils`)
 - Match C# naming: `StringHelper`, `MathUtils` pattern
 - Avoid cryptic symbols: No `$()` (confusing for beginners)
