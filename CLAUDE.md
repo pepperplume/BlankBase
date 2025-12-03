@@ -45,7 +45,6 @@ Application URLs:
   - dom.js (Dom class - DOM manipulation utilities)
   - pagination.js (AjaxPagination class - AJAX pagination with sorting)
   - template-renderer.js (TemplateRenderer class - HTML template population)
-  - confirm-delete.js (ConfirmDelete class - inline delete confirmations with popovers)
 - **wwwroot/**: Static files (css/, lib/)
 
 ## Type-Safe Routing Pattern
@@ -437,12 +436,6 @@ DOM manipulation utilities for element visibility, transitions, and class manage
 const element = Dom.get('#myElement');
 const items = Dom.getAll('.item');
 
-// Wait for DOM ready (replaces document.addEventListener('DOMContentLoaded', ...))
-Dom.whenLoaded(() => {
-    console.log('DOM is ready!');
-    Dom.show('#content');
-});
-
 // Show/hide
 Dom.show('#content');
 Dom.hide('#loading');
@@ -461,26 +454,11 @@ Dom.fadeOut('#loading', 300, () => {
 Dom.addClass('#element', 'active');
 Dom.removeClass('#element', 'disabled');
 Dom.toggleClass('#menu', 'open');
-
-// Button state management
-Dom.disable('#submitBtn');
-Dom.enable('#submitBtn');
-Dom.toggleDisable('#submitBtn');
-
-// Loading state with spinner
-Dom.disableShowLoading('#submitBtn');  // Default: "Loading..."
-Dom.enableHideLoading('#submitBtn');   // Restores original content
-
-// Custom loading text via data attribute
-// <button id="deleteBtn" data-loading-text="Deleting...">Delete</button>
-Dom.disableShowLoading('#deleteBtn');  // Shows spinner + "Deleting..."
-Dom.enableHideLoading('#deleteBtn');
 ```
 
 **Query methods:**
 - `Dom.get(selector)` - Get single element (optimized for ID selectors)
 - `Dom.getAll(selector)` - Get all matching elements as Array (not NodeList)
-- `Dom.whenLoaded(callback)` - Execute callback when DOM is ready (handles late script loads)
 
 **Show/Hide (Bootstrap-powered):**
 - `Dom.show(selector)` - Remove `d-none`, set `aria-hidden="false"`
@@ -507,22 +485,12 @@ Dom.enableHideLoading('#deleteBtn');
 **Utility methods:**
 - `Dom.isVisible(selector)` - Check if element is visible
 
-**Button state management:**
-- `Dom.disable(selector)` - Disable button or input
-- `Dom.enable(selector)` - Enable button or input
-- `Dom.toggleDisable(selector)` - Toggle disabled state
-- `Dom.disableShowLoading(selector)` - Disable + show spinner + loading text
-- `Dom.enableHideLoading(selector)` - Enable + restore original content
-- Supports `data-loading-text` attribute for custom loading messages (default: "Loading...")
-
 **Key features:**
 - Bootstrap `d-none` class instead of inline styles
 - Accessibility via `aria-hidden` attributes
 - ID selector optimization (fast path for `#elementId`)
 - Accepts selector string or Element object
 - CSS transition support for animations
-- Button state management with automatic content preservation/restoration
-- Bootstrap spinner integration for loading states
 
 ### AjaxPagination Class
 
@@ -650,83 +618,6 @@ TemplateRenderer.render('recordRowTemplate', 'recordsTableBody', items);
 - ⚠️ Only touch JavaScript when structure fundamentally changes
 
 **Example:** See `ExampleRecord/AjaxExample.cshtml` for complete implementation
-
-### ConfirmDelete Class
-
-Inline delete confirmation using Bootstrap popovers. Implements a "flip cover" pattern where confirmation appears next to the delete button instead of a modal dialog, providing spatial proximity and context preservation.
-
-**File:** `wwwroot/js/confirm-delete.js`
-
-**Usage:**
-```html
-<!-- Basic delete -->
-<button class="btn btn-danger"
-        data-confirm-delete
-        data-confirm-url="/ExampleRecord/Delete/123">
-    Delete
-</button>
-
-<!-- With warning about side effects -->
-<button class="btn btn-danger"
-        data-confirm-delete
-        data-confirm-url="/ExampleRecord/Delete/123"
-        data-confirm-warning="This will also remove all associated codes">
-    Delete
-</button>
-
-<!-- With auto-remove table row (opt-in) -->
-<tr>
-    <td>Record data...</td>
-    <td>
-        <button class="btn btn-danger"
-                data-confirm-delete
-                data-confirm-url="/ExampleRecord/Delete/123"
-                data-confirm-remove-row>
-            Delete
-        </button>
-    </td>
-</tr>
-```
-
-**Required attributes:**
-- `data-confirm-delete` - Marks button for confirmation handling (required)
-- `data-confirm-url` - URL to POST delete request to (required)
-
-**Optional attributes:**
-- `data-confirm-warning` - Warning message about side effects shown in popover
-- `data-confirm-remove-row` - Auto-remove closest `<tr>` ancestor on successful deletion
-
-**Public API:**
-- `ConfirmDelete.initialize(button)` - Initialize confirmation on a button element
-- Auto-initialization via `Dom.whenLoaded()` finds all `[data-confirm-delete]` buttons
-
-**Behavior:**
-1. Click delete button → Shows Bootstrap popover with "Delete this item?" message
-2. Optional warning displayed if `data-confirm-warning` present
-3. User clicks "Yes, delete" → Shows spinner + "Deleting..." text
-4. POST request sent to URL with CSRF token
-5. Server response processed via `Toast.showMessages(data)`
-6. If `data-confirm-remove-row` and successful → Removes table row from DOM
-7. Popover dismissed on completion or error
-
-**Dismissal:**
-- Click outside popover - Cancels without deleting
-
-**Key features:**
-- Spatial proximity - confirmation appears right where user clicked (better UX than modal)
-- Bootstrap Popover integration for consistent styling
-- CSRF token auto-injection for ASP.NET Core
-- Built-in Toast integration for success/error feedback
-- Optional table row removal automation
-- Loading state with spinner during request
-- Click-outside-to-dismiss behavior
-
-**Dependencies:**
-- `Dom` class (uses `Dom.whenLoaded()`)
-- `Toast` class (uses `Toast.showMessages()` and `Toast.create()`)
-- Bootstrap Popover component
-
-**Load order:** Ensure `dom.js` and `toast.js` load before `confirm-delete.js`
 
 ### JavaScript Class Pattern Notes
 
