@@ -50,6 +50,11 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/toast.js" asp-append-version="true"></script>
+    <script src="~/js/glue.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
+    <script>
+        // Initialize Gluer after all scripts have loaded
+        Gluer.init();
+    </script>
 </body>
 </html>
